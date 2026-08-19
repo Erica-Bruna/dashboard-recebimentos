@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Recebimentos</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 20px; color: #333; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    .kpi-container { display: flex; gap: 15px; justify-content: space-between; margin-bottom: 25px; flex-wrap: wrap; }
+    .kpi-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; min-width: 180px; text-align: center; }
+    .kpi-title { font-size: 0.9em; color: #666; margin-bottom: 8px; }
+    .kpi-value { font-size: 1.4em; font-weight: bold; color: #2c3e50; }
+    .tables-container { display: flex; gap: 20px; flex-wrap: wrap; }
+    .table-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; min-width: 300px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; font-size: 0.9em; }
+    th { background-color: #f8f9fa; }
+    .text-red { color: #d9534f; }
+    .text-green { color: #5cb85c; }
+  </style>
+  <!-- Biblioteca para ler arquivos CSV facilmente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+
+  <h1>Visão Geral de Recebimentos</h1>
+
+  <!-- CARDS DE KPIs -->
+  <div class="kpi-container">
+    <div class="kpi-card">
+      <div class="kpi-title">Total a Receber</div>
+      <div class="kpi-value" id="kpi-total-receber">R$ 0,00</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Total Recebido</div>
+      <div class="kpi-value text-green" id="kpi-total-recebido">R$ 0,00</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Total em Aberto / Atrasado</div>
+      <div class="kpi-value text-red" id="kpi-total-atrasado">R$ 0,00</div>
+    </div>
+  </div>
+
+  <!-- TABELAS DETALHADAS -->
+  <div class="tables-container">
+    <!-- Recebimentos do Dia -->
+    <div class="table-box">
+      <h3>Recebimentos do Dia</h3>
+      <table>
+        <thead>
+          <tr><th>Cliente</th><th>Vencimento</th><th>Valor</th></tr>
+        </thead>
+        <tbody id="tb-dia"></tbody>
+      </table>
+    </div>
+
+    <!-- Parcelas em Atraso -->
+    <div class="table-box">
+      <h3>Parcelas em Atraso</h3>
+      <table>
+        <thead>
+          <tr><th>Cliente</th><th>Vencimento</th><th>Valor</th></tr>
+        </thead>
+        <tbody id="tb-atraso"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
