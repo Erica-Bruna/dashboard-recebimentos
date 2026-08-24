@@ -28,7 +28,13 @@ function formatarMoeda(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function carregarDashboard() {
+function carregarDashboard() { const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dataFormatada = hoje.toLocaleDateString('pt-BR');
+  const elemData = document.getElementById('data-hoje');
+  if (elemData) {
+    elemData.innerText = `📅 Hoje: ${dataFormatada}`;
+  } 
   Papa.parse(CSV_URL, {
     download: true,
     header: true,
