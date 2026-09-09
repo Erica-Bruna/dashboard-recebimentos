@@ -53,11 +53,14 @@ function carregarDashboard() {
 
         const cliente = getColuna('Cliente') || getColuna('Razão Social') || 'Cliente Não Identificado';
         const vencimentoTexto = getColuna('Vencimento');
+        const ultimoRecebimentoTexto = getColuna('Último Recebimento');
         const status = getColuna('Status').toString().trim().toLowerCase();
         
         const valorOriginal = parseValorBR(getColuna('Valor'));
         const valorRecebido = parseValorBR(getColuna('Valor Recebido'));
+        
         const dataVencimento = parseDataBR(vencimentoTexto);
+        const dataUltimoRecebimento = parseDataBR(ultimoRecebimentoTexto);
 
         if (!dataVencimento) return;
         dataVencimento.setHours(0, 0, 0, 0);
@@ -73,14 +76,24 @@ function carregarDashboard() {
           }
         }
 
-        // 2. Recebimentos do DIA
-        if (dataVencimento.getTime() === hoje.getTime()) {
+        // 2. Títulos do DIA (Vencimento HOJE ou Pago HOJE)
+        const venceHoje = dataVencimento.getTime() === hoje.getTime();
+        const pagoHoje = dataUltimoRecebimento && dataUltimoRecebimento.setHours(0,0,0,0) === hoje.getTime();
+
+        if (venceHoje || pagoHoje) {
           if (tbodyDia) {
+            const ehPago = status === 'recebido' || pagoHoje;
+            const badgeStatus = ehPago 
+              ? '<span style="color: #27ae60; font-weight: bold;">(Recebido)</span>' 
+              : '<span style="color: #e67e22; font-weight: bold;">(A Receber)</span>';
+
+            const valorExibicao = (ehPago && valorRecebido > 0) ? valorRecebido : valorOriginal;
+
             tbodyDia.innerHTML += `
               <tr>
-                <td><strong>${cliente}</strong></td>
+                <td><strong>${cliente}</strong> ${badgeStatus}</td>
                 <td>${vencimentoTexto}</td>
-                <td>${formatarMoeda(valorOriginal)}</td>
+                <td>${formatarMoeda(valorExibicao)}</td>
               </tr>`;
           }
         }
