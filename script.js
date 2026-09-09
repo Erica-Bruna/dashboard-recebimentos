@@ -1,6 +1,19 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUhYAMLxTCQCda-UC3miYvm6FnslYgxozIcC0532lU_Jwt2Xp7OnOJkjdvh2r3gyaKj7l2zm965_g4/pub?gid=1540801849&single=true&output=csv';
 let graficoPizza = null;
 
+// Define a data atual no input ao abrir a página pela primeira vez
+window.addEventListener('DOMContentLoaded', () => {
+  const inputData = document.getElementById('filtro-data');
+  if (inputData && !inputData.value) {
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    inputData.value = `${ano}-${mes}-${dia}`;
+  }
+  carregarDashboard();
+});
+
 function parseValorBR(valorTexto) {
   if (!valorTexto) return 0;
   if (typeof valorTexto === 'number') return valorTexto;
@@ -20,11 +33,20 @@ function formatarMoeda(valor) {
 }
 
 function carregarDashboard() {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  const inputData = document.getElementById('filtro-data');
+  let dataConsulta = new Date();
 
-  const elemData = document.getElementById('data-hoje');
-  if (elemData) elemData.innerText = `📅 Hoje: ${hoje.toLocaleDateString('pt-BR')}`;
+  if (inputData && inputData.value) {
+    const [anoSel, mesSel, diaSel] = inputData.value.split('-');
+    dataConsulta = new Date(parseInt(anoSel, 10), parseInt(mesSel, 10) - 1, parseInt(diaSel, 10));
+  }
+  dataConsulta.setHours(0, 0, 0, 0);
+
+  // Atualiza título da tabela com a data selecionada
+  const tituloTabela = document.getElementById('titulo-tabela-dia');
+  if (tituloTabela) {
+    tituloTabela.innerText = `Recebimentos em ${dataConsulta.toLocaleDateString('pt-BR')}`;
+  }
 
   Papa.parse(CSV_URL, {
     download: true,
@@ -34,8 +56,8 @@ function carregarDashboard() {
       const dados = results.data;
       if (!dados || dados.length === 0) return;
 
-      const mesAtual = hoje.getMonth();
-      const anoAtual = hoje.getFullYear();
+      const mesConsulta = dataConsulta.getMonth();
+      const anoConsulta = dataConsulta.getFullYear();
 
       let totalReceberMes = 0;
       let totalRecebidoMes = 0;
@@ -65,9 +87,9 @@ function carregarDashboard() {
         if (!dataVencimento) return;
         dataVencimento.setHours(0, 0, 0, 0);
 
-        const mesmoMesEAno = (dataVencimento.getMonth() === mesAtual && dataVencimento.getFullYear() === anoAtual);
+        const mesmoMesEAno = (dataVencimento.getMonth() === mesConsulta && dataVencimento.getFullYear() === anoConsulta);
 
-        // 1. Métricas do MÊS ATUAL
+        // 1. Métricas do MÊS DA DATA SELECIONADA
         if (mesmoMesEAno) {
           if (status === 'recebido') {
             totalRecebidoMes += (valorRecebido > 0 ? valorRecebido : valorOriginal);
@@ -76,13 +98,13 @@ function carregarDashboard() {
           }
         }
 
-        // 2. Títulos do DIA (Vencimento HOJE ou Pago HOJE)
-        const venceHoje = dataVencimento.getTime() === hoje.getTime();
-        const pagoHoje = dataUltimoRecebimento && dataUltimoRecebimento.setHours(0,0,0,0) === hoje.getTime();
+        // 2. Títulos da DATA SELECIONADA (Vencimento na data ou Pago na data)
+        const venceNaData = dataVencimento.getTime() === dataConsulta.getTime();
+        const pagoNaData = dataUltimoRecebimento && dataUltimoRecebimento.setHours(0,0,0,0) === dataConsulta.getTime();
 
-        if (venceHoje || pagoHoje) {
+        if (venceNaData || pagoNaData) {
           if (tbodyDia) {
-            const ehPago = status === 'recebido' || pagoHoje;
+            const ehPago = status === 'recebido' || pagoNaData;
             const badgeStatus = ehPago 
               ? '<span style="color: #27ae60; font-weight: bold;">(Recebido)</span>' 
               : '<span style="color: #e67e22; font-weight: bold;">(A Receber)</span>';
@@ -98,8 +120,8 @@ function carregarDashboard() {
           }
         }
 
-        // 3. Status 'Atrasado' ou vencidos em aberto (Histórico Geral)
-        if (status === 'atrasado' || (dataVencimento < hoje && status !== 'recebido')) {
+        // 3. Status 'Atrasado' ou vencidos em aberto em relação à data selecionada
+        if (status === 'atrasado' || (dataVencimento < dataConsulta && status !== 'recebido')) {
           totalAtrasadoGeral += valorOriginal;
         }
       });
@@ -145,5 +167,3 @@ function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosGeral) {
     }
   });
 }
-
-carregarDashboard();
