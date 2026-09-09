@@ -1,108 +1,134 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUhYAMLxTCQCda-UC3miYvm6FnslYgxozIcC0532lU_Jwt2Xp7OnOJkjdvh2r3gyaKj7l2zm965_g4/pub?gid=1540801849&single=true&output=csv';
+let graficoPizza = null;
 
-// Função para converter dinheiro brasileiro (ex: "33.658,79" ou 33658.79) em número
 function parseValorBR(valorTexto) {
   if (!valorTexto) return 0;
   if (typeof valorTexto === 'number') return valorTexto;
-  
-  // Remove pontos de milhar e troca vírgula decimal por ponto
   const limpo = valorTexto.toString().replace(/\./g, '').replace(',', '.').trim();
   return parseFloat(limpo) || 0;
 }
 
-// Função para converter "DD/MM/YYYY" em Objeto Date do JavaScript
 function parseDataBR(dataTexto) {
   if (!dataTexto) return null;
   const partes = dataTexto.trim().split('/');
   if (partes.length !== 3) return null;
-  
-  const dia = parseInt(partes[0], 10);
-  const mes = parseInt(partes[1], 10) - 1; // Mês no JS começa em 0
-  const ano = parseInt(partes[2], 10);
-  
-  return new Date(ano, mes, dia);
+  return new Date(parseInt(partes[2], 10), parseInt(partes[1], 10) - 1, parseInt(partes[0], 10));
 }
 
-// Formatar número para moeda R$
 function formatarMoeda(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function carregarDashboard() { const hoje = new Date();
+function carregarDashboard() {
+  const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  const dataFormatada = hoje.toLocaleDateString('pt-BR');
+
   const elemData = document.getElementById('data-hoje');
-  if (elemData) {
-    elemData.innerText = `📅 Hoje: ${dataFormatada}`;
-  } 
+  if (elemData) elemData.innerText = `📅 Hoje: ${hoje.toLocaleDateString('pt-BR')}`;
+
   Papa.parse(CSV_URL, {
     download: true,
     header: true,
     skipEmptyLines: true,
     complete: function(results) {
       const dados = results.data;
-      
-      // Data de hoje sem horas (zerada) para comparação justa
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
+      if (!dados || dados.length === 0) return;
 
-      let totalGeral = 0;
-      let totalRecebido = 0;
-      let totalAbertoAtrasado = 0;
+      const mesAtual = hoje.getMonth();
+      const anoAtual = hoje.getFullYear();
+
+      let totalReceberMes = 0;
+      let totalRecebidoMes = 0;
+      let totalAtrasadoGeral = 0;
 
       const tbodyDia = document.getElementById('tb-dia');
-      const tbodyAtraso = document.getElementById('tb-atraso');
-
-      tbodyDia.innerHTML = '';
-      tbodyAtraso.innerHTML = '';
+      if (tbodyDia) tbodyDia.innerHTML = '';
 
       dados.forEach(item => {
-        const cliente = item['Cliente'] || '';
-        const vencimentoTexto = item['Vencimento'] || '';
-        const status = (item['Status'] || '').trim().toLowerCase();
+        const chaves = Object.keys(item);
+        const getColuna = (nome) => {
+          const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
+          return chave ? item[chave] : '';
+        };
+
+        const cliente = getColuna('Cliente') || getColuna('Razão Social') || 'Cliente Não Identificado';
+        const vencimentoTexto = getColuna('Vencimento');
+        const status = getColuna('Status').toString().trim().toLowerCase();
         
-        const valorOriginal = parseValorBR(item['Valor']);
-        const valorRecebido = parseValorBR(item['Valor Recebido']);
+        const valorOriginal = parseValorBR(getColuna('Valor'));
+        const valorRecebido = parseValorBR(getColuna('Valor Recebido'));
         const dataVencimento = parseDataBR(vencimentoTexto);
 
-        totalGeral += valorOriginal;
+        if (!dataVencimento) return;
+        dataVencimento.setHours(0, 0, 0, 0);
 
-        if (status === 'recebido') {
-          totalRecebido += (valorRecebido > 0 ? valorRecebido : valorOriginal);
-        } else {
-          // Para pendentes (A Receber / Atrasado)
-          totalAbertoAtrasado += valorOriginal;
+        const mesmoMesEAno = (dataVencimento.getMonth() === mesAtual && dataVencimento.getFullYear() === anoAtual);
 
-          if (dataVencimento) {
-            dataVencimento.setHours(0, 0, 0, 0);
-
-            // Recebimentos do dia (Vencimento é HOJE)
-            if (dataVencimento.getTime() === hoje.getTime()) {
-              tbodyDia.innerHTML += `
-                <tr>
-                  <td>${cliente}</td>
-                  <td>${vencimentoTexto}</td>
-                  <td>${formatarMoeda(valorOriginal)}</td>
-                </tr>`;
-            }
-
-            // Parcelas em Atraso (Vencimento ANTERIOR a HOJE ou marcado como "atrasado")
-            if (dataVencimento < hoje || status === 'atrasado') {
-              tbodyAtraso.innerHTML += `
-                <tr>
-                  <td>${cliente}</td>
-                  <td>${vencimentoTexto}</td>
-                  <td class="text-red">${formatarMoeda(valorOriginal)}</td>
-                </tr>`;
-            }
+        // 1. Métricas do MÊS ATUAL
+        if (mesmoMesEAno) {
+          if (status === 'recebido') {
+            totalRecebidoMes += (valorRecebido > 0 ? valorRecebido : valorOriginal);
+          } else if (status === 'a receber' || status === 'atrasado') {
+            totalReceberMes += valorOriginal;
           }
+        }
+
+        // 2. Recebimentos do DIA
+        if (dataVencimento.getTime() === hoje.getTime()) {
+          if (tbodyDia) {
+            tbodyDia.innerHTML += `
+              <tr>
+                <td><strong>${cliente}</strong></td>
+                <td>${vencimentoTexto}</td>
+                <td>${formatarMoeda(valorOriginal)}</td>
+              </tr>`;
+          }
+        }
+
+        // 3. Status 'Atrasado' ou vencidos em aberto (Histórico Geral)
+        if (status === 'atrasado' || (dataVencimento < hoje && status !== 'recebido')) {
+          totalAtrasadoGeral += valorOriginal;
         }
       });
 
-      // Atualiza os cards no topo
-      document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalGeral);
-      document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebido);
-      document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAbertoAtrasado);
+      // Atualização dos Cards
+      document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberMes);
+      document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoMes);
+      document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoGeral);
+
+      // Renderização do Gráfico de Pizza
+      renderizarGraficoPizza(totalRecebidoMes, totalReceberMes, totalAtrasadoGeral);
+    }
+  });
+}
+
+function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosGeral) {
+  const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
+
+  if (graficoPizza) graficoPizza.destroy();
+
+  graficoPizza = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['Recebido (Mês)', 'A Receber (Mês)', 'Atrasados (Geral)'],
+      datasets: [{
+        data: [recebidoMes, receberMes, atrasadosGeral],
+        backgroundColor: ['#2ecc71', '#3498db', '#e74c3c']
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const valor = context.raw || 0;
+              return ` ${context.label}: ${formatarMoeda(valor)}`;
+            }
+          }
+        }
+      }
     }
   });
 }
