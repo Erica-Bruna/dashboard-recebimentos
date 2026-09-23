@@ -47,6 +47,7 @@
       font-size: 0.9em; 
       cursor: pointer; 
       outline: none; 
+      color-scheme: dark; /* Melhora a visualização do calendário no tema escuro */
     }
 
     .kpi-container { 
@@ -134,14 +135,14 @@
   <div class="filtro-container">
     <div class="filtro-box">
       <label for="filtro-data-inicio">📅 De:</label>
-      <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()">
+      <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()" oninput="carregarDashboard()">
       
       <label for="filtro-data-fim">Até:</label>
-      <input type="date" id="filtro-data-fim" onchange="carregarDashboard()">
+      <input type="date" id="filtro-data-fim" onchange="carregarDashboard()" oninput="carregarDashboard()">
     </div>
   </div>
 
-  <!-- CARDS DE RESUMO DO PERÍODO -->
+  <!-- CARDS DE RESUMO -->
   <div class="kpi-container">
     <div class="kpi-card">
       <h3 id="label-total-receber">Total a Receber (Período)</h3>
