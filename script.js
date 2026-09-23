@@ -80,6 +80,9 @@ function carregarDashboard() {
       const tbodyDia = document.getElementById('tb-dia');
       if (tbodyDia) tbodyDia.innerHTML = '';
 
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
       dados.forEach(item => {
         const chaves = Object.keys(item);
         const getColuna = (nome) => {
@@ -105,12 +108,15 @@ function carregarDashboard() {
 
         const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
 
+        // REGRA DE CÁLCULO DOS CARDS CORRIGIDA
         if (vencimentoNoPeriodo) {
-          if (status === 'a receber' || status === 'atrasado') {
+          // A Receber: Títulos no prazo dentro do período
+          if (status === 'a receber' && dataVencimento >= hoje) {
             totalReceberPeriodo += valorOriginal;
           }
 
-          if (status === 'atrasado' || (dataVencimento < dataFim && status !== 'recebido')) {
+          // Atrasados: Títulos com status "atrasado" OU que já venceram antes de hoje e não foram pagos
+          if (status === 'atrasado' || (status !== 'recebido' && dataVencimento < hoje)) {
             totalAtrasadoPeriodo += valorOriginal;
           }
         }
@@ -123,7 +129,7 @@ function carregarDashboard() {
           totalRecebidoCaixa += valorExibicao;
 
           if (tbodyDia) {
-            // Ordem garantida: 1. Cliente | 2. Vencimento | 3. Nota Fiscal | 4. Valor
+            // Ordem: 1. Cliente | 2. Vencimento | 3. Nota Fiscal | 4. Valor
             tbodyDia.innerHTML += `
               <tr>
                 <td><strong>${cliente}</strong> <span style="color: #E85D17; font-weight: bold;">(Recebido)</span></td>
