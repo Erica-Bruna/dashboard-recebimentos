@@ -23,7 +23,7 @@ function parseDataBR(dataTexto) {
   const dia = parseInt(partes[0], 10);
   const mes = parseInt(partes[1], 10) - 1;
   const ano = parseInt(partes[2], 10);
-  return new Date(ano, mes, dia, 12, 0, 0); // Evita problemas com fuso horário
+  return new Date(ano, mes, dia, 12, 0, 0); // Evita desvio de fuso horário
 }
 
 function formatarMoeda(valor) {
@@ -70,6 +70,7 @@ function carregarDashboard() {
       let totalReceberMes = 0;
       let totalRecebidoMes = 0;
       let totalAtrasadoGeral = 0;
+      let totalDiaPesquisado = 0;
 
       const tbodyDia = document.getElementById('tb-dia');
       if (tbodyDia) tbodyDia.innerHTML = '';
@@ -105,14 +106,15 @@ function carregarDashboard() {
           }
         }
 
-        // 2. Tabela: Apenas pagamentos EFETUADOS na data pesquisada
+        // 2. Tabela: Pagamentos EFETUADOS na data pesquisada
         const pagoNaData = mesmaData(dataUltimoRecebimento, dataConsulta) || 
                            (status === 'recebido' && mesmaData(dataVencimento, dataConsulta) && !dataUltimoRecebimento);
 
         if (pagoNaData) {
-          if (tbodyDia) {
-            const valorExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
+          const valorExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
+          totalDiaPesquisado += valorExibicao;
 
+          if (tbodyDia) {
             tbodyDia.innerHTML += `
               <tr>
                 <td><strong>${cliente}</strong> <span style="color: #27ae60; font-weight: bold;">(Recebido)</span></td>
@@ -127,6 +129,22 @@ function carregarDashboard() {
           totalAtrasadoGeral += valorOriginal;
         }
       });
+
+      // Adiciona a linha de total na última linha da tabela
+      if (tbodyDia) {
+        if (totalDiaPesquisado > 0) {
+          tbodyDia.innerHTML += `
+            <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
+              <td colspan="2" style="text-align: right; font-size: 1.05em;">Total Recebido no Dia:</td>
+              <td style="color: #27ae60; font-size: 1.1em;">${formatarMoeda(totalDiaPesquisado)}</td>
+            </tr>`;
+        } else {
+          tbodyDia.innerHTML = `
+            <tr>
+              <td colspan="3" style="text-align: center; color: #777;">Nenhum recebimento registrado nesta data.</td>
+            </tr>`;
+        }
+      }
 
       // Atualiza os Cards da tela
       document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberMes);
