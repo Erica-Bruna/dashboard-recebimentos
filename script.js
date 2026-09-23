@@ -80,7 +80,6 @@ function carregarDashboard() {
       const tbodyDia = document.getElementById('tb-dia');
       if (tbodyDia) tbodyDia.innerHTML = '';
 
-      // Define a data de hoje zerando as horas para comparação correta
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
@@ -106,21 +105,22 @@ function carregarDashboard() {
 
         if (!dataVencimento) return;
 
+        // Verifica se o vencimento do título está no mês/período selecionado
         const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
 
-        // REGRA DE CÁLCULO DOS CARDS
         if (vencimentoNoPeriodo) {
-          // A Receber: Apenas títulos A VENCER (vencimento maior ou igual a hoje e status "a receber")
-          if (status === 'a receber' && dataVencimento >= hoje) {
+          // 1. TOTAL A RECEBER DO MÊS: Tudo o que tem vencimento no mês e status "a receber"
+          if (status === 'a receber') {
             totalReceberPeriodo += valorOriginal;
           }
 
-          // Atrasados: Títulos com status "atrasado" OU que já venceram antes de hoje e não foram pagos
+          // 2. TOTAL ATRASADO DO MÊS: Tudo o que tinha vencimento no mês, mas está com status "atrasado" OU venceu antes de hoje sem pagamento
           if (status === 'atrasado' || (status !== 'recebido' && dataVencimento < hoje)) {
             totalAtrasadoPeriodo += valorOriginal;
           }
         }
 
+        // 3. TOTAL RECEBIDO NO PERÍODO: Pagamentos efetuados dentro do período selecionado
         const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
         const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
 
