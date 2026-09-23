@@ -22,7 +22,6 @@ function formatarMoeda(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// Define o início e fim do mês atual por padrão ao carregar
 window.addEventListener('DOMContentLoaded', () => {
   const inputInicio = document.getElementById('filtro-data-inicio');
   const inputFim = document.getElementById('filtro-data-fim');
@@ -61,7 +60,6 @@ function carregarDashboard() {
     dataFim = new Date(parseInt(a, 10), parseInt(m, 10) - 1, parseInt(d, 10), 23, 59, 59);
   }
 
-  // Atualiza título da tabela com o período
   const tituloTabela = document.getElementById('titulo-tabela-dia');
   if (tituloTabela) {
     tituloTabela.innerText = `Recebimentos de ${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`;
@@ -76,9 +74,8 @@ function carregarDashboard() {
       if (!dados || dados.length === 0) return;
 
       let totalReceberPeriodo = 0;
-      let totalRecebidoPeriodo = 0;
+      let totalRecebidoCaixa = 0;
       let totalAtrasadoPeriodo = 0;
-      let totalTabelaPeriodo = 0;
 
       const tbodyDia = document.getElementById('tb-dia');
       if (tbodyDia) tbodyDia.innerHTML = '';
@@ -103,14 +100,10 @@ function carregarDashboard() {
 
         if (!dataVencimento) return;
 
-        // Verifica se o vencimento está dentro do período selecionado
         const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
 
-        // 1. Totais do Período Selecionado
         if (vencimentoNoPeriodo) {
-          if (status === 'recebido') {
-            totalRecebidoPeriodo += (valorRecebido > 0 ? valorRecebido : valorOriginal);
-          } else if (status === 'a receber' || status === 'atrasado') {
+          if (status === 'a receber' || status === 'atrasado') {
             totalReceberPeriodo += valorOriginal;
           }
 
@@ -119,18 +112,17 @@ function carregarDashboard() {
           }
         }
 
-        // 2. Tabela: Pagamentos EFETUADOS dentro do período pesquisado
         const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
         const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
 
         if (pagoNoPeriodo) {
           const valorExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
-          totalTabelaPeriodo += valorExibicao;
+          totalRecebidoCaixa += valorExibicao;
 
           if (tbodyDia) {
             tbodyDia.innerHTML += `
               <tr>
-                <td><strong>${cliente}</strong> <span style="color: #27ae60; font-weight: bold;">(Recebido)</span></td>
+                <td><strong>${cliente}</strong> <span style="color: #E85D17; font-weight: bold;">(Recebido)</span></td>
                 <td>${vencimentoTexto}</td>
                 <td>${formatarMoeda(valorExibicao)}</td>
               </tr>`;
@@ -138,28 +130,26 @@ function carregarDashboard() {
         }
       });
 
-      // Linha de total na tabela
       if (tbodyDia) {
-        if (totalTabelaPeriodo > 0) {
+        if (totalRecebidoCaixa > 0) {
           tbodyDia.innerHTML += `
-            <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
-              <td colspan="2" style="text-align: right; font-size: 1.05em;">Total Recebido no Período:</td>
-              <td style="color: #27ae60; font-size: 1.1em;">${formatarMoeda(totalTabelaPeriodo)}</td>
+            <tr style="background-color: #252525; font-weight: bold; border-top: 2px solid #E85D17;">
+              <td colspan="2" style="text-align: right; font-size: 1.05em; color: #FFFFFF;">Total Recebido no Período:</td>
+              <td style="color: #E85D17; font-size: 1.1em;">${formatarMoeda(totalRecebidoCaixa)}</td>
             </tr>`;
         } else {
           tbodyDia.innerHTML = `
             <tr>
-              <td colspan="3" style="text-align: center; color: #777;">Nenhum recebimento registrado neste período.</td>
+              <td colspan="3" style="text-align: center; color: #A0A0A0;">Nenhum recebimento registrado neste período.</td>
             </tr>`;
         }
       }
 
-      // Atualiza os Cards
       document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberPeriodo);
-      document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoPeriodo);
+      document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoCaixa);
       document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
-      renderizarGraficoPizza(totalRecebidoPeriodo, totalReceberPeriodo, totalAtrasadoPeriodo);
+      renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo);
     }
   });
 }
@@ -172,16 +162,22 @@ function renderizarGraficoPizza(recebido, receber, atrasados) {
   graficoPizza = new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: ['Recebido (Período)', 'A Receber (Período)', 'Atrasados (Período)'],
+      labels: ['Recebido', 'A Receber', 'Atrasados'],
       datasets: [{
         data: [recebido, receber, atrasados],
-        backgroundColor: ['#2ecc71', '#3498db', '#e74c3c']
+        // Cores ajustadas para a identidade escura/laranja
+        backgroundColor: ['#E85D17', '#3498db', '#e74c3c'],
+        borderColor: '#1A1A1A',
+        borderWidth: 2
       }]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { position: 'bottom' },
+        legend: { 
+          position: 'bottom',
+          labels: { color: '#FFFFFF' } // Texto da legenda em branco
+        },
         tooltip: {
           callbacks: {
             label: function(context) {
