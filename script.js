@@ -1,14 +1,6 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUhYAMLxTCQCda-UC3miYvm6FnslYgxozIcC0532lU_Jwt2Xp7OnOJkjdvh2r3gyaKj7l2zm965_g4/pub?gid=1540801849&single=true&output=csv';
 let graficoPizza = null;
 
-// Comparação de datas ignorando hora e fuso horário
-function mesmaData(d1, d2) {
-  if (!d1 || !d2) return false;
-  return d1.getFullYear() === d2.getFullYear() &&
-         d1.getMonth() === d2.getMonth() &&
-         d1.getDate() === d2.getDate();
-}
-
 function parseValorBR(valorTexto) {
   if (!valorTexto) return 0;
   if (typeof valorTexto === 'number') return valorTexto;
@@ -30,30 +22,49 @@ function formatarMoeda(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Define o início e fim do mês atual por padrão ao carregar
 window.addEventListener('DOMContentLoaded', () => {
-  const inputData = document.getElementById('filtro-data');
-  if (inputData && !inputData.value) {
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoje.getDate()).padStart(2, '0');
-    inputData.value = `${ano}-${mes}-${dia}`;
-  }
+  const inputInicio = document.getElementById('filtro-data-inicio');
+  const inputFim = document.getElementById('filtro-data-fim');
+  
+  const hoje = new Date();
+  const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+  const formatarDataInput = (d) => {
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${ano}-${mes}-${dia}`;
+  };
+
+  if (inputInicio && !inputInicio.value) inputInicio.value = formatarDataInput(primeiroDia);
+  if (inputFim && !inputFim.value) inputFim.value = formatarDataInput(ultimoDia);
+
   carregarDashboard();
 });
 
 function carregarDashboard() {
-  const inputData = document.getElementById('filtro-data');
-  let dataConsulta = new Date();
+  const inputInicio = document.getElementById('filtro-data-inicio');
+  const inputFim = document.getElementById('filtro-data-fim');
 
-  if (inputData && inputData.value) {
-    const [anoSel, mesSel, diaSel] = inputData.value.split('-');
-    dataConsulta = new Date(parseInt(anoSel, 10), parseInt(mesSel, 10) - 1, parseInt(diaSel, 10), 12, 0, 0);
+  let dataInicio = new Date();
+  let dataFim = new Date();
+
+  if (inputInicio && inputInicio.value) {
+    const [a, m, d] = inputInicio.value.split('-');
+    dataInicio = new Date(parseInt(a, 10), parseInt(m, 10) - 1, parseInt(d, 10), 0, 0, 0);
   }
 
+  if (inputFim && inputFim.value) {
+    const [a, m, d] = inputFim.value.split('-');
+    dataFim = new Date(parseInt(a, 10), parseInt(m, 10) - 1, parseInt(d, 10), 23, 59, 59);
+  }
+
+  // Atualiza título da tabela com o período
   const tituloTabela = document.getElementById('titulo-tabela-dia');
   if (tituloTabela) {
-    tituloTabela.innerText = `Recebimentos em ${dataConsulta.toLocaleDateString('pt-BR')}`;
+    tituloTabela.innerText = `Recebimentos de ${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`;
   }
 
   Papa.parse(CSV_URL, {
@@ -64,13 +75,10 @@ function carregarDashboard() {
       const dados = results.data;
       if (!dados || dados.length === 0) return;
 
-      const mesConsulta = dataConsulta.getMonth();
-      const anoConsulta = dataConsulta.getFullYear();
-
-      let totalReceberMes = 0;
-      let totalRecebidoMes = 0;
-      let totalAtrasadoMes = 0;
-      let totalDiaPesquisado = 0;
+      let totalReceberPeriodo = 0;
+      let totalRecebidoPeriodo = 0;
+      let totalAtrasadoPeriodo = 0;
+      let totalTabelaPeriodo = 0;
 
       const tbodyDia = document.getElementById('tb-dia');
       if (tbodyDia) tbodyDia.innerHTML = '';
@@ -95,29 +103,29 @@ function carregarDashboard() {
 
         if (!dataVencimento) return;
 
-        const mesmoMesEAno = (dataVencimento.getMonth() === mesConsulta && dataVencimento.getFullYear() === anoConsulta);
+        // Verifica se o vencimento está dentro do período selecionado
+        const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
 
-        // 1. Totais de 'A Receber' e 'Recebido' do Mês Selecionado
-        if (mesmoMesEAno) {
+        // 1. Totais do Período Selecionado
+        if (vencimentoNoPeriodo) {
           if (status === 'recebido') {
-            totalRecebidoMes += (valorRecebido > 0 ? valorRecebido : valorOriginal);
+            totalRecebidoPeriodo += (valorRecebido > 0 ? valorRecebido : valorOriginal);
           } else if (status === 'a receber' || status === 'atrasado') {
-            totalReceberMes += valorOriginal;
+            totalReceberPeriodo += valorOriginal;
           }
 
-          // 2. Totais de 'Atrasados' APENAS do Mês Selecionado
-          if (status === 'atrasado' || (dataVencimento < dataConsulta && status !== 'recebido')) {
-            totalAtrasadoMes += valorOriginal;
+          if (status === 'atrasado' || (dataVencimento < dataFim && status !== 'recebido')) {
+            totalAtrasadoPeriodo += valorOriginal;
           }
         }
 
-        // 3. Tabela: Pagamentos EFETUADOS na data pesquisada
-        const pagoNaData = mesmaData(dataUltimoRecebimento, dataConsulta) || 
-                           (status === 'recebido' && mesmaData(dataVencimento, dataConsulta) && !dataUltimoRecebimento);
+        // 2. Tabela: Pagamentos EFETUADOS dentro do período pesquisado
+        const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
+        const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
 
-        if (pagoNaData) {
+        if (pagoNoPeriodo) {
           const valorExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
-          totalDiaPesquisado += valorExibicao;
+          totalTabelaPeriodo += valorExibicao;
 
           if (tbodyDia) {
             tbodyDia.innerHTML += `
@@ -130,34 +138,33 @@ function carregarDashboard() {
         }
       });
 
-      // Linha de total na tabela do dia
+      // Linha de total na tabela
       if (tbodyDia) {
-        if (totalDiaPesquisado > 0) {
+        if (totalTabelaPeriodo > 0) {
           tbodyDia.innerHTML += `
             <tr style="background-color: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
-              <td colspan="2" style="text-align: right; font-size: 1.05em;">Total Recebido no Dia:</td>
-              <td style="color: #27ae60; font-size: 1.1em;">${formatarMoeda(totalDiaPesquisado)}</td>
+              <td colspan="2" style="text-align: right; font-size: 1.05em;">Total Recebido no Período:</td>
+              <td style="color: #27ae60; font-size: 1.1em;">${formatarMoeda(totalTabelaPeriodo)}</td>
             </tr>`;
         } else {
           tbodyDia.innerHTML = `
             <tr>
-              <td colspan="3" style="text-align: center; color: #777;">Nenhum recebimento registrado nesta data.</td>
+              <td colspan="3" style="text-align: center; color: #777;">Nenhum recebimento registrado neste período.</td>
             </tr>`;
         }
       }
 
       // Atualiza os Cards
-      document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberMes);
-      document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoMes);
-      document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoMes);
+      document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberPeriodo);
+      document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoPeriodo);
+      document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
-      // Atualiza o Gráfico com os dados restritos ao mês
-      renderizarGraficoPizza(totalRecebidoMes, totalReceberMes, totalAtrasadoMes);
+      renderizarGraficoPizza(totalRecebidoPeriodo, totalReceberPeriodo, totalAtrasadoPeriodo);
     }
   });
 }
 
-function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosMes) {
+function renderizarGraficoPizza(recebido, receber, atrasados) {
   const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
 
   if (graficoPizza) graficoPizza.destroy();
@@ -165,9 +172,9 @@ function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosMes) {
   graficoPizza = new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: ['Recebido (Mês)', 'A Receber (Mês)', 'Atrasados (Mês)'],
+      labels: ['Recebido (Período)', 'A Receber (Período)', 'Atrasados (Período)'],
       datasets: [{
-        data: [recebidoMes, receberMes, atrasadosMes],
+        data: [recebido, receber, atrasados],
         backgroundColor: ['#2ecc71', '#3498db', '#e74c3c']
       }]
     },
