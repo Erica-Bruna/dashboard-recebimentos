@@ -92,8 +92,8 @@ function carregarDashboard() {
         const ultimoRecebimentoTexto = getColuna('Último Recebimento');
         const status = getColuna('Status').toString().trim().toLowerCase();
         
-        // Pega exatamente a coluna "Nota Fiscal" da planilha (Coluna H)
-        const notaFiscal = getColuna('Nota Fiscal') || getColuna('NF') || '-';
+        // Busca a coluna da Nota Fiscal na planilha
+        const notaFiscal = getColuna('Nota Fiscal') || getColuna('NF') || getColuna('Nº NF') || '-';
 
         const valorOriginal = parseValorBR(getColuna('Valor'));
         const valorRecebido = parseValorBR(getColuna('Valor Recebido'));
@@ -123,11 +123,12 @@ function carregarDashboard() {
           totalRecebidoCaixa += valorExibicao;
 
           if (tbodyDia) {
+            // Ordem garantida: 1. Cliente | 2. Vencimento | 3. Nota Fiscal | 4. Valor
             tbodyDia.innerHTML += `
               <tr>
                 <td><strong>${cliente}</strong> <span style="color: #E85D17; font-weight: bold;">(Recebido)</span></td>
                 <td>${vencimentoTexto}</td>
-                <td><span style="color: #A0A0A0; font-weight: bold;">${notaFiscal}</span></td>
+                <td><span style="color: #A0A0A0;">${notaFiscal}</span></td>
                 <td>${formatarMoeda(valorExibicao)}</td>
               </tr>`;
           }
