@@ -92,7 +92,7 @@ function carregarDashboard() {
         const ultimoRecebimentoTexto = getColuna('Último Recebimento');
         const status = getColuna('Status').toString().trim().toLowerCase();
         
-        // Pega o número da Nota Fiscal na planilha
+        // Pega exatamente a coluna "Nota Fiscal" da planilha (Coluna H)
         const notaFiscal = getColuna('Nota Fiscal') || getColuna('NF') || '-';
 
         const valorOriginal = parseValorBR(getColuna('Valor'));
