@@ -1,7 +1,7 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUhYAMLxTCQCda-UC3miYvm6FnslYgxozIcC0532lU_Jwt2Xp7OnOJkjdvh2r3gyaKj7l2zm965_g4/pub?gid=1540801849&single=true&output=csv';
 let graficoPizza = null;
 
-// Função auxiliar para comparar duas datas ignorando fuso horário
+// Comparação de datas ignorando hora e fuso horário
 function mesmaData(d1, d2) {
   if (!d1 || !d2) return false;
   return d1.getFullYear() === d2.getFullYear() &&
@@ -23,7 +23,7 @@ function parseDataBR(dataTexto) {
   const dia = parseInt(partes[0], 10);
   const mes = parseInt(partes[1], 10) - 1;
   const ano = parseInt(partes[2], 10);
-  return new Date(ano, mes, dia, 12, 0, 0); // Evita desvio de fuso horário
+  return new Date(ano, mes, dia, 12, 0, 0);
 }
 
 function formatarMoeda(valor) {
@@ -69,7 +69,7 @@ function carregarDashboard() {
 
       let totalReceberMes = 0;
       let totalRecebidoMes = 0;
-      let totalAtrasadoGeral = 0;
+      let totalAtrasadoMes = 0;
       let totalDiaPesquisado = 0;
 
       const tbodyDia = document.getElementById('tb-dia');
@@ -97,16 +97,21 @@ function carregarDashboard() {
 
         const mesmoMesEAno = (dataVencimento.getMonth() === mesConsulta && dataVencimento.getFullYear() === anoConsulta);
 
-        // 1. Totais do Mês Selecionado
+        // 1. Totais de 'A Receber' e 'Recebido' do Mês Selecionado
         if (mesmoMesEAno) {
           if (status === 'recebido') {
             totalRecebidoMes += (valorRecebido > 0 ? valorRecebido : valorOriginal);
           } else if (status === 'a receber' || status === 'atrasado') {
             totalReceberMes += valorOriginal;
           }
+
+          // 2. Totais de 'Atrasados' APENAS do Mês Selecionado
+          if (status === 'atrasado' || (dataVencimento < dataConsulta && status !== 'recebido')) {
+            totalAtrasadoMes += valorOriginal;
+          }
         }
 
-        // 2. Tabela: Pagamentos EFETUADOS na data pesquisada
+        // 3. Tabela: Pagamentos EFETUADOS na data pesquisada
         const pagoNaData = mesmaData(dataUltimoRecebimento, dataConsulta) || 
                            (status === 'recebido' && mesmaData(dataVencimento, dataConsulta) && !dataUltimoRecebimento);
 
@@ -123,14 +128,9 @@ function carregarDashboard() {
               </tr>`;
           }
         }
-
-        // 3. Totais em Atraso Geral
-        if (status === 'atrasado' || (dataVencimento < dataConsulta && status !== 'recebido')) {
-          totalAtrasadoGeral += valorOriginal;
-        }
       });
 
-      // Adiciona a linha de total na última linha da tabela
+      // Linha de total na tabela do dia
       if (tbodyDia) {
         if (totalDiaPesquisado > 0) {
           tbodyDia.innerHTML += `
@@ -146,17 +146,18 @@ function carregarDashboard() {
         }
       }
 
-      // Atualiza os Cards da tela
+      // Atualiza os Cards
       document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberMes);
       document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoMes);
-      document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoGeral);
+      document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoMes);
 
-      renderizarGraficoPizza(totalRecebidoMes, totalReceberMes, totalAtrasadoGeral);
+      // Atualiza o Gráfico com os dados restritos ao mês
+      renderizarGraficoPizza(totalRecebidoMes, totalReceberMes, totalAtrasadoMes);
     }
   });
 }
 
-function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosGeral) {
+function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosMes) {
   const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
 
   if (graficoPizza) graficoPizza.destroy();
@@ -164,9 +165,9 @@ function renderizarGraficoPizza(recebidoMes, receberMes, atrasadosGeral) {
   graficoPizza = new Chart(ctx, {
     type: 'pie',
     data: {
-      labels: ['Recebido (Mês)', 'A Receber (Mês)', 'Atrasados (Geral)'],
+      labels: ['Recebido (Mês)', 'A Receber (Mês)', 'Atrasados (Mês)'],
       datasets: [{
-        data: [recebidoMes, receberMes, atrasadosGeral],
+        data: [recebidoMes, receberMes, atrasadosMes],
         backgroundColor: ['#2ecc71', '#3498db', '#e74c3c']
       }]
     },
