@@ -92,6 +92,9 @@ function carregarDashboard() {
         const ultimoRecebimentoTexto = getColuna('Último Recebimento');
         const status = getColuna('Status').toString().trim().toLowerCase();
         
+        // Pega o número da Nota Fiscal na planilha
+        const notaFiscal = getColuna('Nota Fiscal') || getColuna('NF') || '-';
+
         const valorOriginal = parseValorBR(getColuna('Valor'));
         const valorRecebido = parseValorBR(getColuna('Valor Recebido'));
         
@@ -124,6 +127,7 @@ function carregarDashboard() {
               <tr>
                 <td><strong>${cliente}</strong> <span style="color: #E85D17; font-weight: bold;">(Recebido)</span></td>
                 <td>${vencimentoTexto}</td>
+                <td><span style="color: #A0A0A0; font-weight: bold;">${notaFiscal}</span></td>
                 <td>${formatarMoeda(valorExibicao)}</td>
               </tr>`;
           }
@@ -134,13 +138,13 @@ function carregarDashboard() {
         if (totalRecebidoCaixa > 0) {
           tbodyDia.innerHTML += `
             <tr style="background-color: #252525; font-weight: bold; border-top: 2px solid #E85D17;">
-              <td colspan="2" style="text-align: right; font-size: 1.05em; color: #FFFFFF;">Total Recebido no Período:</td>
+              <td colspan="3" style="text-align: right; font-size: 1.05em; color: #FFFFFF;">Total Recebido no Período:</td>
               <td style="color: #E85D17; font-size: 1.1em;">${formatarMoeda(totalRecebidoCaixa)}</td>
             </tr>`;
         } else {
           tbodyDia.innerHTML = `
             <tr>
-              <td colspan="3" style="text-align: center; color: #A0A0A0;">Nenhum recebimento registrado neste período.</td>
+              <td colspan="4" style="text-align: center; color: #A0A0A0;">Nenhum recebimento registrado neste período.</td>
             </tr>`;
         }
       }
@@ -165,7 +169,6 @@ function renderizarGraficoPizza(recebido, receber, atrasados) {
       labels: ['Recebido', 'A Receber', 'Atrasados'],
       datasets: [{
         data: [recebido, receber, atrasados],
-        // Cores ajustadas para a identidade escura/laranja
         backgroundColor: ['#E85D17', '#3498db', '#e74c3c'],
         borderColor: '#1A1A1A',
         borderWidth: 2
@@ -176,7 +179,7 @@ function renderizarGraficoPizza(recebido, receber, atrasados) {
       plugins: {
         legend: { 
           position: 'bottom',
-          labels: { color: '#FFFFFF' } // Texto da legenda em branco
+          labels: { color: '#FFFFFF' }
         },
         tooltip: {
           callbacks: {
