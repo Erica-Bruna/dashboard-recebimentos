@@ -35,11 +35,14 @@
 
   <h1>Visão Geral de Recebimentos</h1>
 
-  <!-- FILTRO DE DATA -->
+  <!-- FILTRO DE PERÍODO (INÍCIO E FIM) -->
   <div class="filtro-container">
     <div class="filtro-box">
-      <label for="filtro-data">📅 Data de Consulta:</label>
-      <input type="date" id="filtro-data" onchange="carregarDashboard()">
+      <label for="filtro-data-inicio">📅 De:</label>
+      <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()">
+      
+      <label for="filtro-data-fim">Até:</label>
+      <input type="date" id="filtro-data-fim" onchange="carregarDashboard()">
     </div>
   </div>
 
