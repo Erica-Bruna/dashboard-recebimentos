@@ -95,7 +95,6 @@ function carregarDashboard() {
         const ultimoRecebimentoTexto = getColuna('Último Recebimento');
         const status = getColuna('Status').toString().trim().toLowerCase();
         
-        // Busca a coluna da Nota Fiscal na planilha
         const notaFiscal = getColuna('Nota Fiscal') || getColuna('NF') || getColuna('Nº NF') || '-';
 
         const valorOriginal = parseValorBR(getColuna('Valor'));
@@ -108,14 +107,14 @@ function carregarDashboard() {
 
         const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
 
-        // REGRA DE CÁLCULO DOS CARDS CORRIGIDA
+        // CÁLCULO DOS CARDS DO PERÍODO
         if (vencimentoNoPeriodo) {
-          // A Receber: Títulos no prazo dentro do período
-          if (status === 'a receber' && dataVencimento >= hoje) {
+          // Total a Receber: Soma todos os títulos com vencimento no mês/período que têm o status "a receber"
+          if (status === 'a receber') {
             totalReceberPeriodo += valorOriginal;
           }
 
-          // Atrasados: Títulos com status "atrasado" OU que já venceram antes de hoje e não foram pagos
+          // Total Atrasado: Soma títulos marcados como "atrasado" ou com vencimento expirado que não foram pagos
           if (status === 'atrasado' || (status !== 'recebido' && dataVencimento < hoje)) {
             totalAtrasadoPeriodo += valorOriginal;
           }
@@ -129,7 +128,6 @@ function carregarDashboard() {
           totalRecebidoCaixa += valorExibicao;
 
           if (tbodyDia) {
-            // Ordem: 1. Cliente | 2. Vencimento | 3. Nota Fiscal | 4. Valor
             tbodyDia.innerHTML += `
               <tr>
                 <td><strong>${cliente}</strong> <span style="color: #E85D17; font-weight: bold;">(Recebido)</span></td>
