@@ -80,6 +80,7 @@ function carregarDashboard() {
       const tbodyDia = document.getElementById('tb-dia');
       if (tbodyDia) tbodyDia.innerHTML = '';
 
+      // Pega o dia de hoje sem horário para comparações de vencimento
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
@@ -105,22 +106,24 @@ function carregarDashboard() {
 
         if (!dataVencimento) return;
 
-        // Verifica se o vencimento do título está no mês/período selecionado
+        // Compara se o VENCIMENTO está estritamente dentro do período pesquisado
         const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
 
         if (vencimentoNoPeriodo) {
-          // 1. TOTAL A RECEBER DO MÊS: Tudo o que tem vencimento no mês e status "a receber"
-          if (status === 'a receber') {
-            totalReceberPeriodo += valorOriginal;
-          }
-
-          // 2. TOTAL ATRASADO DO MÊS: Tudo o que tinha vencimento no mês, mas está com status "atrasado" OU venceu antes de hoje sem pagamento
-          if (status === 'atrasado' || (status !== 'recebido' && dataVencimento < hoje)) {
-            totalAtrasadoPeriodo += valorOriginal;
+          // Se o título NÃO FOI PAGO:
+          if (status !== 'recebido') {
+            // 1. TOTAL ATRASADO: Venceu no período pesquisado e a data de vencimento já passou em relação a HOJE
+            if (status === 'atrasado' || dataVencimento < hoje) {
+              totalAtrasadoPeriodo += valorOriginal;
+            } 
+            // 2. TOTAL A RECEBER: Vence no período pesquisado e a data de vencimento é HOJE ou FUTURA
+            else {
+              totalReceberPeriodo += valorOriginal;
+            }
           }
         }
 
-        // 3. TOTAL RECEBIDO NO PERÍODO: Pagamentos efetuados dentro do período selecionado
+        // 3. TOTAL RECEBIDO NO PERÍODO: Títulos quitados com pagamento dentro do período pesquisado
         const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
         const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
 
