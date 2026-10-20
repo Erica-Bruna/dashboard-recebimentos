@@ -117,18 +117,15 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
     const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
     const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
     
-    // Verifica se já foi efetivamente pago (independente de quando ocorreu o pagamento)
+    // Verifica se já foi efetivamente pago
     const jaFoiPago = (status === 'recebido' || (dataUltimoRecebimento !== null && !isNaN(dataUltimoRecebimento)));
 
-    // 1. Cálculo dos totais para os KPIs e Gráfico
-    if (vencimentoNoPeriodo) {
-      // Se já foi pago, NÃO pode entrar como atrasado nem a receber, mesmo que o vencimento seja no período
-      if (!jaFoiPago) {
-        if (status === 'atrasado' || dataVencimento < hoje) {
-          totalAtrasadoPeriodo += valorOriginal;
-        } else {
-          totalReceberPeriodo += valorOriginal;
-        }
+    // 1. Cálculo dos totais para os KPIs (Cartões)
+    if (vencimentoNoPeriodo && !jaFoiPago) {
+      if (status === 'atrasado' || dataVencimento < hoje) {
+        totalAtrasadoPeriodo += valorOriginal;
+      } else {
+        totalReceberPeriodo += valorOriginal;
       }
     }
 
@@ -146,6 +143,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
       categoriaLinha = 'Recebido';
       valorLinhaExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
     } else if (vencimentoNoPeriodo && !jaFoiPago) {
+      // IMPORTANTE: Só classifica como atrasado ou a receber se NÃO tiver sido pago
       if (status === 'atrasado' || dataVencimento < hoje) {
         categoriaLinha = 'Atrasados';
       } else {
@@ -153,7 +151,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
       }
     }
 
-    // Se houver filtro por clique no gráfico, exibe apenas os correspondentes
+    // Se houver categoria válida e passar pelo filtro de clique no gráfico
     if (categoriaLinha) {
       let incluirNaTabela = true;
       if (filtroCategoria) {
