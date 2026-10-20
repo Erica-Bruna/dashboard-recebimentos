@@ -1,6 +1,6 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUhYAMLxTCQCda-UC3miYvm6FnslYgxozIcC0532lU_Jwt2Xp7OnOJkjdvh2r3gyaKj7l2zm965_g4/pub?gid=1540801849&single=true&output=csv';
 let graficoPizza = null;
-let todosDadosGlobais = []; // Guarda todos os dados da planilha para o filtro do gráfico
+let todosDadosGlobais = [];
 
 function parseValorBR(valorTexto) {
   if (!valorTexto) return 0;
@@ -74,7 +74,7 @@ function carregarDashboard() {
       const dados = results.data;
       if (!dados || dados.length === 0) return;
 
-      todosDadosGlobais = dados; // Salva para uso nos cliques do gráfico
+      todosDadosGlobais = dados;
       processarEExibirTabela(dados, dataInicio, dataFim, null);
     }
   });
@@ -118,44 +118,47 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
     const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
     const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
 
-    let categoriaItem = null; // 'Recebido', 'A Receber' ou 'Atrasados'
-    let valorExibicaoLinha = valorOriginal;
-
-    // Classificação para os KPIs e Gráfico
-    if (vencimentoNoPeriodo) {
-      if (status !== 'recebido') {
-        if (status === 'atrasado' || dataVencimento < hoje) {
-          totalAtrasadoPeriodo += valorOriginal;
-          categoriaItem = 'Atrasados';
-        } else {
-          totalReceberPeriodo += valorOriginal;
-          categoriaItem = 'A Receber';
-        }
+    // 1. Cálculo dos totais para os KPIs e Gráfico
+    if (vencimentoNoPeriodo && status !== 'recebido') {
+      if (status === 'atrasado' || dataVencimento < hoje) {
+        totalAtrasadoPeriodo += valorOriginal;
+      } else {
+        totalReceberPeriodo += valorOriginal;
       }
     }
 
     if (pagoNoPeriodo) {
-      valorExibicaoLinha = valorRecebido > 0 ? valorRecebido : valorOriginal;
+      const valorExibicaoLinha = valorRecebido > 0 ? valorRecebido : valorOriginal;
       totalRecebidoCaixa += valorExibicaoLinha;
-      categoriaItem = 'Recebido';
     }
 
-    // Se o item se encaixa no período de alguma forma, avalia para a tabela
-    if (vencimentoNoPeriodo || pagoNoPeriodo) {
-      // Se houver um filtro de clique no gráfico, filtra apenas a categoria correspondente
-      let exibirNaTabela = true;
+    // 2. Classificação individual para exibição na tabela
+    let categoriaLinha = null;
+    let valorLinhaExibicao = valorOriginal;
+
+    if (pagoNoPeriodo) {
+      categoriaLinha = 'Recebido';
+      valorLinhaExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
+    } else if (vencimentoNoPeriodo) {
+      if (status === 'atrasado' || dataVencimento < hoje) {
+        categoriaLinha = 'Atrasados';
+      } else {
+        categoriaLinha = 'A Receber';
+      }
+    }
+
+    // Se houver filtro por clique no gráfico, exibe apenas os correspondentes
+    if (categoriaLinha) {
+      let incluirNaTabela = true;
       if (filtroCategoria) {
-        exibirNaTabela = (categoriaItem === filtroCategoria);
+        incluirNaTabela = (categoriaLinha === filtroCategoria);
       }
 
-      if (exibirNaTabela && (pagoNoPeriodo || vencimentoNoPeriodo)) {
+      if (incluirNaTabela) {
         let tagStatus = '';
-        let valorTabela = valorOriginal;
-
-        if (categoriaItem === 'Recebido') {
+        if (categoriaLinha === 'Recebido') {
           tagStatus = '<span style="color: #E85D17; font-weight: bold;">(Recebido)</span>';
-          valorTabela = valorExibicaoLinha;
-        } else if (categoriaItem === 'Atrasados') {
+        } else if (categoriaLinha === 'Atrasados') {
           tagStatus = '<span style="color: #e74c3c; font-weight: bold;">(Atrasado)</span>';
         } else {
           tagStatus = '<span style="color: #3498db; font-weight: bold;">(A Receber)</span>';
@@ -167,31 +170,30 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
               <td><strong>${cliente}</strong> ${tagStatus}</td>
               <td>${vencimentoTexto}</td>
               <td><span style="color: #A0A0A0;">${notaFiscal}</span></td>
-              <td>${formatarMoeda(valorTabela)}</td>
+              <td>${formatarMoeda(valorLinhaExibicao)}</td>
             </tr>`,
-          valorSoma: valorTabela,
-          isRecebido: (categoriaItem === 'Recebido')
+          valorSoma: valorLinhaExibicao
         });
       }
     }
   });
 
-  // Preenche a tabela na tela
-  let somaTotalFiltrada = 0;
+  // Insere as linhas na tabela HTML
+  let somaFiltrada = 0;
   linhasParaExibir.forEach(l => {
     if (tbodyDia) tbodyDia.innerHTML += l.html;
-    somaTotalFiltrada += l.valorSoma;
+    somaFiltrada += l.valorSoma;
   });
 
   if (tbodyDia) {
     if (linhasParaExibir.length > 0) {
-      const textoRodapé = filtroCategoria ? `Total (${filtroCategoria}):` : 'Total Recebido no Período:';
-      const valorRodapé = filtroCategoria === 'Recebido' || !filtroCategoria ? totalRecebidoCaixa : somaTotalFiltrada;
-      
+      const textoRodape = filtroCategoria ? `Total (${filtroCategoria}):` : 'Total Recebido no Período:';
+      const valorRodape = filtroCategoria === 'Recebido' || !filtroCategoria ? totalRecebidoCaixa : somaFiltrada;
+
       tbodyDia.innerHTML += `
         <tr style="background-color: #252525; font-weight: bold; border-top: 2px solid #E85D17;">
-          <td colspan="3" style="text-align: right; font-size: 1.05em; color: #FFFFFF;">${textoRodapé}</td>
-          <td style="color: #E85D17; font-size: 1.1em;">${formatarMoeda(valorRodapé)}</td>
+          <td colspan="3" style="text-align: right; font-size: 1.05em; color: #FFFFFF;">${textoRodape}</td>
+          <td style="color: #E85D17; font-size: 1.1em;">${formatarMoeda(valorRodape)}</td>
         </tr>`;
     } else {
       tbodyDia.innerHTML = `
@@ -205,7 +207,6 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
   document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoCaixa);
   document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
-  // Se for a primeira carga, desenha o gráfico
   if (!filtroCategoria) {
     renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim);
   }
@@ -239,7 +240,7 @@ function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFi
             tituloTabela.innerText = `Filtro: ${labelClicado} (${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')})`;
           }
 
-          // Atualiza a tabela com os dados da fatia clicada
+          // Filtra a tabela ao clicar na fatia da pizza
           processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado);
         }
       },
