@@ -116,17 +116,23 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
 
     const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
     const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
-    const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
+    
+    // Verifica se já foi efetivamente pago (independente de quando ocorreu o pagamento)
+    const jaFoiPago = (status === 'recebido' || (dataUltimoRecebimento !== null && !isNaN(dataUltimoRecebimento)));
 
     // 1. Cálculo dos totais para os KPIs e Gráfico
-    if (vencimentoNoPeriodo && status !== 'recebido') {
-      if (status === 'atrasado' || dataVencimento < hoje) {
-        totalAtrasadoPeriodo += valorOriginal;
-      } else {
-        totalReceberPeriodo += valorOriginal;
+    if (vencimentoNoPeriodo) {
+      // Se já foi pago, NÃO pode entrar como atrasado nem a receber, mesmo que o vencimento seja no período
+      if (!jaFoiPago) {
+        if (status === 'atrasado' || dataVencimento < hoje) {
+          totalAtrasadoPeriodo += valorOriginal;
+        } else {
+          totalReceberPeriodo += valorOriginal;
+        }
       }
     }
 
+    const pagoNoPeriodo = dataPagamento && (dataPagamento >= dataInicio && dataPagamento <= dataFim);
     if (pagoNoPeriodo) {
       const valorExibicaoLinha = valorRecebido > 0 ? valorRecebido : valorOriginal;
       totalRecebidoCaixa += valorExibicaoLinha;
@@ -139,7 +145,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
     if (pagoNoPeriodo) {
       categoriaLinha = 'Recebido';
       valorLinhaExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
-    } else if (vencimentoNoPeriodo) {
+    } else if (vencimentoNoPeriodo && !jaFoiPago) {
       if (status === 'atrasado' || dataVencimento < hoje) {
         categoriaLinha = 'Atrasados';
       } else {
@@ -233,14 +239,13 @@ function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFi
       onClick: (event, elements) => {
         if (elements.length > 0) {
           const indexClicado = elements[0].index;
-          const labelClicado = graficoPizza.data.labels[indexClicado]; // 'Recebido', 'A Receber' ou 'Atrasados'
+          const labelClicado = graficoPizza.data.labels[indexClicado];
           
           const tituloTabela = document.getElementById('titulo-tabela-dia');
           if (tituloTabela) {
             tituloTabela.innerText = `Filtro: ${labelClicado} (${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')})`;
           }
 
-          // Filtra a tabela ao clicar na fatia da pizza
           processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado);
         }
       },
