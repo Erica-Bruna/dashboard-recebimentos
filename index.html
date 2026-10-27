@@ -14,10 +14,19 @@
       color: #FFFFFF; 
     }
     
+    .header-container {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
     h1 { 
-      text-align: center; 
       color: #E85D17; 
-      margin-bottom: 15px; 
+      margin-bottom: 5px; 
+    }
+
+    .ultima-atualizacao {
+      font-size: 0.85em;
+      color: #888888;
     }
 
     .filtro-container { 
@@ -32,13 +41,15 @@
       border-radius: 20px; 
       display: inline-flex; 
       align-items: center; 
-      gap: 10px; 
+      gap: 15px; 
       font-weight: bold; 
       font-size: 0.9em; 
       border: 1px solid #2A2A2A;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     
-    .filtro-box input[type="date"] { 
+    .filtro-box input[type="date"], .filtro-box select { 
       border: 1px solid #E85D17; 
       background-color: #2A2A2A;
       color: #FFFFFF;
@@ -47,7 +58,7 @@
       font-size: 0.9em; 
       cursor: pointer; 
       outline: none; 
-      color-scheme: dark; /* Melhora a visualização do calendário no tema escuro */
+      color-scheme: dark;
     }
 
     .kpi-container { 
@@ -129,16 +140,30 @@
 </head>
 <body>
 
-  <h1>Recebimentos REACH</h1>
+  <!-- 1. TÍTULO E DATA/HORA DA ÚLTIMA ATUALIZAÇÃO -->
+  <div class="header-container">
+    <h1>Recebimentos REACH</h1>
+    <div id="info-ultima-atualizacao" class="ultima-atualizacao">Última atualização: Aguardando carregamento...</div>
+  </div>
 
-  <!-- FILTRO DE PERÍODO (INÍCIO E FIM) -->
+  <!-- FILTROS (PERÍODO + 2. RAZÃO SOCIAL) -->
   <div class="filtro-container">
     <div class="filtro-box">
-      <label for="filtro-data-inicio">📅 De:</label>
-      <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()" oninput="carregarDashboard()">
-      
-      <label for="filtro-data-fim">Até:</label>
-      <input type="date" id="filtro-data-fim" onchange="carregarDashboard()" oninput="carregarDashboard()">
+      <div>
+        <label for="filtro-data-inicio">📅 De:</label>
+        <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()" oninput="carregarDashboard()">
+        
+        <label for="filtro-data-fim">Até:</label>
+        <input type="date" id="filtro-data-fim" onchange="carregarDashboard()" oninput="carregarDashboard()">
+      </div>
+
+      <!-- Filtro de Razão Social posicionado ao lado das datas -->
+      <div>
+        <label for="filtro-razao-social">🏢 Razão Social:</label>
+        <select id="filtro-razao-social" onchange="carregarDashboard()">
+          <option value="">Todas as Razões Sociais</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -158,7 +183,7 @@
     </div>
   </div>
 
-  <!-- TABELA DE RECEBIMENTOS + GRÁFICO PIZZA -->
+  <!-- TABELA DE RECEBIMENTOS + GRÁFICO -->
   <div class="tables-container">
     <div class="table-box">
       <h2 id="titulo-tabela-dia">Recebimentos do Período</h2>
