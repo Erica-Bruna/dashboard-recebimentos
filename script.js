@@ -47,6 +47,7 @@ window.addEventListener('DOMContentLoaded', () => {
 function carregarDashboard() {
   const inputInicio = document.getElementById('filtro-data-inicio');
   const inputFim = document.getElementById('filtro-data-fim');
+  const selectRazao = document.getElementById('filtro-razao-social');
 
   let dataInicio = new Date();
   let dataFim = new Date();
@@ -75,12 +76,61 @@ function carregarDashboard() {
       if (!dados || dados.length === 0) return;
 
       todosDadosGlobais = dados;
-      processarEExibirTabela(dados, dataInicio, dataFim, null);
+
+      // 1. ATUALIZA A DATA E HORA EXATA DO CARREGAMENTO NO DASHBOARD
+      atualizarHoraAtualizacao();
+
+      // 2. POPULA O SELECT DE RAZÃO SOCIAL (caso ainda esteja vazio)
+      popularFiltroRazaoSocial(dados);
+
+      // Aplica os filtros considerando também a Razão Social selecionada
+      const razaoSelecionada = selectRazao ? selectRazao.value : "";
+      processarEExibirTabela(dados, dataInicio, dataFim, null, razaoSelecionada);
     }
   });
 }
 
-function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
+// Função para gerar a data e hora formatada
+function atualizarHoraAtualizacao() {
+  const agora = new Date();
+  const dataFormatada = agora.toLocaleDateString('pt-BR');
+  const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  
+  const elemento = document.getElementById('info-ultima-atualizacao');
+  if (elemento) {
+    elemento.innerText = `Última atualização: ${dataFormatada} às ${horaFormatada}`;
+  }
+}
+
+// Função para preencher o select com as Razões Sociais únicas do CSV
+function popularFiltroRazaoSocial(dados) {
+  const select = document.getElementById('filtro-razao-social');
+  if (!select) return;
+
+  // Evita duplicar se já foi preenchido anteriormente
+  if (select.options.length > 1) return;
+
+  const razoes = new Set();
+  dados.forEach(item => {
+    const chaves = Object.keys(item);
+    const getColuna = (nome) => {
+      const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
+      return chave ? item[chave] : '';
+    };
+    const razao = getColuna('Razão Social') || getColuna('Cliente');
+    if (razao) razoes.add(razao.toString().trim());
+  });
+
+  const razoesOrdenadas = Array.from(razoes).sort();
+  razoesOrdenadas.forEach(razao => {
+    const opt = document.createElement('option');
+    opt.value = razao;
+    opt.textContent = razao;
+    select.appendChild(opt);
+  });
+}
+
+function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, filtroRazaoSocial) {
   let totalReceberPeriodo = 0;
   let totalRecebidoCaixa = 0;
   let totalAtrasadoPeriodo = 0;
@@ -101,6 +151,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
     };
 
     const cliente = getColuna('Cliente') || getColuna('Razão Social') || 'Cliente Não Identificado';
+    const razaoSocialItem = (getColuna('Razão Social') || getColuna('Cliente')).toString().trim();
     const vencimentoTexto = getColuna('Vencimento');
     const ultimoRecebimentoTexto = getColuna('Último Recebimento');
     const status = getColuna('Status').toString().trim().toLowerCase();
@@ -114,13 +165,16 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
 
     if (!dataVencimento) return;
 
+    // 3. APLICA O FILTRO DE RAZÃO SOCIAL (se houver alguma selecionada)
+    if (filtroRazaoSocial && filtroRazaoSocial !== "" && razaoSocialItem !== filtroRazaoSocial) {
+      return;
+    }
+
     const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
     const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
-    
-    // Verifica se já foi efetivamente pago
     const jaFoiPago = (status === 'recebido' || (dataUltimoRecebimento !== null && !isNaN(dataUltimoRecebimento)));
 
-    // 1. Cálculo dos totais para os KPIs (Cartões)
+    // Cálculo dos totais para os KPIs
     if (vencimentoNoPeriodo && !jaFoiPago) {
       if (status === 'atrasado' || dataVencimento < hoje) {
         totalAtrasadoPeriodo += valorOriginal;
@@ -135,7 +189,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
       totalRecebidoCaixa += valorExibicaoLinha;
     }
 
-    // 2. Classificação individual para exibição na tabela
+    // Classificação individual para exibição na tabela
     let categoriaLinha = null;
     let valorLinhaExibicao = valorOriginal;
 
@@ -143,7 +197,6 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
       categoriaLinha = 'Recebido';
       valorLinhaExibicao = valorRecebido > 0 ? valorRecebido : valorOriginal;
     } else if (vencimentoNoPeriodo && !jaFoiPago) {
-      // IMPORTANTE: Só classifica como atrasado ou a receber se NÃO tiver sido pago
       if (status === 'atrasado' || dataVencimento < hoje) {
         categoriaLinha = 'Atrasados';
       } else {
@@ -151,7 +204,6 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
       }
     }
 
-    // Se houver categoria válida e passar pelo filtro de clique no gráfico
     if (categoriaLinha) {
       let incluirNaTabela = true;
       if (filtroCategoria) {
@@ -212,11 +264,11 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria) {
   document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
   if (!filtroCategoria) {
-    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim);
+    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim, filtroRazaoSocial);
   }
 }
 
-function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim) {
+function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim, filtroRazaoSocial) {
   const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
 
   if (graficoPizza) graficoPizza.destroy();
@@ -244,7 +296,7 @@ function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFi
             tituloTabela.innerText = `Filtro: ${labelClicado} (${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')})`;
           }
 
-          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado);
+          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado, filtroRazaoSocial);
         }
       },
       plugins: {
