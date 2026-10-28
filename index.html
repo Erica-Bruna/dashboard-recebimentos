@@ -26,8 +26,7 @@
 
     .ultima-atualizacao {
       font-size: 0.85em;
-      color: #2ecc71; /* Verde para destacar que a planilha foi atualizada */
-      font-weight: 500;
+      color: #888888;
     }
 
     .filtro-container { 
@@ -50,7 +49,7 @@
       justify-content: center;
     }
     
-    .filtro-box input[type="date"] { 
+    .filtro-box input[type="date"], .filtro-box select { 
       border: 1px solid #E85D17; 
       background-color: #2A2A2A;
       color: #FFFFFF;
@@ -60,23 +59,6 @@
       cursor: pointer; 
       outline: none; 
       color-scheme: dark;
-    }
-
-    .btn-limpar {
-      background-color: #2A2A2A;
-      color: #CCCCCC;
-      border: 1px solid #444444;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.9em;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-limpar:hover {
-      background-color: #3A3A3A;
-      color: #FFFFFF;
-      border-color: #E85D17;
     }
 
     .kpi-container { 
@@ -121,26 +103,6 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.5); 
       border: 1px solid #2A2A2A;
     }
-
-    .table-header-flex {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .filtro-cliente-box input {
-      background-color: #2A2A2A;
-      color: #FFFFFF;
-      border: 1px solid #E85D17;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.9em;
-      outline: none;
-      width: 260px;
-    }
     
     .chart-box { 
       width: 380px; 
@@ -178,24 +140,30 @@
 </head>
 <body>
 
-  <!-- TÍTULO E DATA/HORA DA PLANILHA -->
+  <!-- 1. TÍTULO E DATA/HORA DA ÚLTIMA ATUALIZAÇÃO -->
   <div class="header-container">
     <h1>Recebimentos REACH</h1>
-    <div id="info-ultima-atualizacao" class="ultima-atualizacao">Última atualização da planilha: A verificar...</div>
+    <div id="info-ultima-atualizacao" class="ultima-atualizacao">Última atualização: Aguardando carregamento...</div>
   </div>
 
-  <!-- FILTROS DE PERÍODO E BOTÃO LIMPAR -->
+  <!-- FILTROS (PERÍODO + 2. RAZÃO SOCIAL) -->
   <div class="filtro-container">
     <div class="filtro-box">
       <div>
         <label for="filtro-data-inicio">📅 De:</label>
         <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()" oninput="carregarDashboard()">
         
-        <label for="filtro-data-fim" style="margin-left: 15px;">Até:</label>
+        <label for="filtro-data-fim">Até:</label>
         <input type="date" id="filtro-data-fim" onchange="carregarDashboard()" oninput="carregarDashboard()">
       </div>
 
-      <button onclick="limparFiltros()" class="btn-limpar">🔄 Limpar Filtros</button>
+      <!-- Filtro de Razão Social posicionado ao lado das datas -->
+      <div>
+        <label for="filtro-razao-social">🏢 Razão Social:</label>
+        <select id="filtro-razao-social" onchange="carregarDashboard()">
+          <option value="">Todas as Razões Sociais</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -218,17 +186,7 @@
   <!-- TABELA DE RECEBIMENTOS + GRÁFICO -->
   <div class="tables-container">
     <div class="table-box">
-      <!-- CABEÇALHO COM CAMPO DE DIGITAÇÃO DE CLIENTE -->
-      <div class="table-header-flex">
-        <h2 id="titulo-tabela-dia" style="margin: 0; font-size: 1.2em;">Recebimentos do Período</h2>
-        <div class="filtro-cliente-box">
-          <input type="text" id="filtro-cliente" list="lista-clientes" placeholder="🔍 Digite ou selecione o cliente..." oninput="carregarDashboard()" onchange="carregarDashboard()">
-          <datalist id="lista-clientes">
-            <!-- As opções de clientes serão preenchidas automaticamente aqui -->
-          </datalist>
-        </div>
-      </div>
-
+      <h2 id="titulo-tabela-dia">Recebimentos do Período</h2>
       <table>
         <thead>
           <tr>
