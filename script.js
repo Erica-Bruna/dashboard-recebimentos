@@ -49,15 +49,15 @@ function definirDatasPadrao() {
 
 function limparFiltros() {
   definirDatasPadrao();
-  const selectCliente = document.getElementById('filtro-cliente');
-  if (selectCliente) selectCliente.value = "";
+  const inputCliente = document.getElementById('filtro-cliente');
+  if (inputCliente) inputCliente.value = "";
   carregarDashboard();
 }
 
 function carregarDashboard() {
   const inputInicio = document.getElementById('filtro-data-inicio');
   const inputFim = document.getElementById('filtro-data-fim');
-  const selectCliente = document.getElementById('filtro-cliente');
+  const inputCliente = document.getElementById('filtro-cliente');
 
   let dataInicio = new Date();
   let dataFim = new Date();
@@ -77,6 +77,24 @@ function carregarDashboard() {
     tituloTabela.innerText = `Recebimentos de ${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`;
   }
 
+  // Busca a última alteração do Google Sheets através do cabeçalho HTTP e carrega os dados
+  fetch(CSV_URL, { method: 'HEAD' })
+    .then(response => {
+      const ultimaModificacaoHeader = response.headers.get('Last-Modified');
+      if (ultimaModificacaoHeader) {
+        const dataMod = new Date(ultimaModificacaoHeader);
+        const dataFmt = dataMod.toLocaleDateString('pt-BR');
+        const horaFmt = dataMod.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('info-ultima-atualizacao').innerText = `Última atualização da planilha: ${dataFmt} às ${horaFmt}`;
+      } else {
+        // Fallback caso o servidor não envie o cabeçalho HEAD
+        document.getElementById('info-ultima-atualizacao').innerText = `Última atualização da planilha: ${new Date().toLocaleDateString('pt-BR')} (Sincronizada hoje)`;
+      }
+    })
+    .catch(() => {
+      document.getElementById('info-ultima-atualizacao').innerText = `Última atualização da planilha: ${new Date().toLocaleDateString('pt-BR')}`;
+    });
+
   Papa.parse(CSV_URL, {
     download: true,
     header: true,
@@ -87,35 +105,20 @@ function carregarDashboard() {
 
       todosDadosGlobais = dados;
 
-      // Atualiza data e hora exata do carregamento web
-      atualizarHoraAtualizacao();
+      // Preenche o datalist com todos os clientes únicos detetados
+      popularDatalistClientes(dados);
 
-      // Preenche o menu suspenso de clientes
-      popularFiltroCliente(dados);
-
-      const clienteSelecionado = selectCliente ? selectCliente.value : "";
-      processarEExibirTabela(dados, dataInicio, dataFim, null, clienteSelecionado);
+      const clienteDigitado = inputCliente ? inputCliente.value.trim() : "";
+      processarEExibirTabela(dados, dataInicio, dataFim, null, clienteDigitado);
     }
   });
 }
 
-function atualizarHoraAtualizacao() {
-  const agora = new Date();
-  const dataFormatada = agora.toLocaleDateString('pt-BR');
-  const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  
-  const elemento = document.getElementById('info-ultima-atualizacao');
-  if (elemento) {
-    elemento.innerText = `Última atualização: ${dataFormatada} às ${horaFormatada}`;
-  }
-}
+function popularDatalistClientes(dados) {
+  const datalist = document.getElementById('lista-clientes');
+  if (!datalist) return;
 
-function popularFiltroCliente(dados) {
-  const select = document.getElementById('filtro-cliente');
-  if (!select) return;
-
-  const valorAtual = select.value;
-  select.innerHTML = '<option value="">🔍 Todos os Clientes</option>';
+  datalist.innerHTML = '';
 
   const clientesSet = new Set();
   dados.forEach(item => {
@@ -130,16 +133,13 @@ function popularFiltroCliente(dados) {
 
   const clientesOrdenados = Array.from(clientesSet).sort();
   clientesOrdenados.forEach(cli => {
-    const opt = document.createElement('option');
-    opt.value = cli;
-    opt.textContent = cli;
-    select.appendChild(opt);
+    const option = document.createElement('option');
+    option.value = cli;
+    datalist.appendChild(option);
   });
-
-  select.value = valorAtual;
 }
 
-function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, filtroCliente) {
+function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, filtroClienteTexto) {
   let totalReceberPeriodo = 0;
   let totalRecebidoCaixa = 0;
   let totalAtrasadoPeriodo = 0;
@@ -173,9 +173,11 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
 
     if (!dataVencimento) return;
 
-    // Só aplica o filtro se um cliente específico estiver selecionado
-    if (filtroCliente && filtroCliente !== "" && cliente !== filtroCliente) {
-      return;
+    // Filtra por digitação parcial (permite pesquisar o que o utilizador escrever)
+    if (filtroClienteTexto && filtroClienteTexto !== "") {
+      if (!cliente.toLowerCase().includes(filtroClienteTexto.toLowerCase())) {
+        return;
+      }
     }
 
     const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
@@ -269,11 +271,11 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
   document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
   if (!filtroCategoria) {
-    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim, filtroCliente);
+    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim, filtroClienteTexto);
   }
 }
 
-function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim, filtroCliente) {
+function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim, filtroClienteTexto) {
   const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
 
   if (graficoPizza) graficoPizza.destroy();
@@ -301,7 +303,7 @@ function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFi
             tituloTabela.innerText = `Filtro: ${labelClicado} (${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')})`;
           }
 
-          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado, filtroCliente);
+          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado, filtroClienteTexto);
         }
       },
       plugins: {
