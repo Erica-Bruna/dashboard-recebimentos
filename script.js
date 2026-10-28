@@ -173,6 +173,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
 
     if (!dataVencimento) return;
 
+    // Só aplica o filtro se um cliente específico estiver selecionado
     if (filtroCliente && filtroCliente !== "" && cliente !== filtroCliente) {
       return;
     }
