@@ -125,11 +125,15 @@ function popularDatalistClientes(dados) {
       const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
       return chave ? item[chave] : '';
     };
+    
     const cliente = getColuna('Cliente') || getColuna('Razão Social');
-    if (cliente) clientesSet.add(cliente.toString().trim());
+    if (cliente && cliente.toString().trim() !== '') {
+      clientesSet.add(cliente.toString().trim());
+    }
   });
 
-  const clientesOrdenados = Array.from(clientesSet).sort();
+  const clientesOrdenados = Array.from(clientesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  
   clientesOrdenados.forEach(cli => {
     const option = document.createElement('option');
     option.value = cli;
