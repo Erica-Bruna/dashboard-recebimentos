@@ -1,6 +1,7 @@
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUhYAMLxTCQCda-UC3miYvm6FnslYgxozIcC0532lU_Jwt2Xp7OnOJkjdvh2r3gyaKj7l2zm965_g4/pub?gid=1540801849&single=true&output=csv';
 let graficoPizza = null;
 let todosDadosGlobais = [];
+let timerFiltro = null;
 
 function parseValorBR(valorTexto) {
   if (!valorTexto) return 0;
@@ -54,7 +55,82 @@ function limparFiltros() {
   carregarDashboard();
 }
 
+// Função com atraso para evitar travamentos ao digitar rapidamente
+function acionarFiltroComAtraso() {
+  clearTimeout(timerFiltro);
+  timerFiltro = setTimeout(() => {
+    processarEExibirDashboardGeral();
+  }, 300);
+}
+
 function carregarDashboard() {
+  Papa.parse(CSV_URL, {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(results) {
+      const dados = results.data;
+      if (!dados || dados.length === 0) return;
+
+      todosDadosGlobais = dados;
+
+      // Lê a data e hora da última atualização da primeira linha da planilha
+      let textoAtualizacao = "Não informada";
+      if (dados.length > 0) {
+        const primeiroItem = dados[0];
+        const chaves = Object.keys(primeiroItem);
+        const chaveAtualizacao = chaves.find(k => k.trim().toLowerCase().includes('ultima') || k.trim().toLowerCase().includes('atualizacao'));
+        
+        if (chaveAtualizacao && primeiroItem[chaveAtualizacao]) {
+          textoAtualizacao = primeiroItem[chaveAtualizacao].toString().trim();
+        }
+      }
+
+      const elementoAtualizacao = document.getElementById('info-ultima-atualizacao');
+      if (elementoAtualizacao) {
+        elementoAtualizacao.innerText = `Última atualização da planilha: ${textoAtualizacao}`;
+      }
+
+      popularDatalistClientes(dados);
+      processarEExibirDashboardGeral();
+    }
+  });
+}
+
+function popularDatalistClientes(dados) {
+  const datalist = document.getElementById('lista-clientes');
+  if (!datalist) return;
+
+  // Evita reescrever se já estiver populado para poupar processamento
+  if (datalist.children.length > 0) return;
+
+  const clientesSet = new Set();
+  dados.forEach(item => {
+    const chaves = Object.keys(item);
+    const getColuna = (nome) => {
+      const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
+      return chave ? item[chave] : '';
+    };
+    
+    const cliente = getColuna('Cliente') || getColuna('Razão Social');
+    if (cliente && cliente.toString().trim() !== '') {
+      clientesSet.add(cliente.toString().trim());
+    }
+  });
+
+  const clientesOrdenados = Array.from(clientesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  
+  // Criação em lote para máxima performance
+  const fragmento = document.createDocumentFragment();
+  clientesOrdenados.forEach(cli => {
+    const option = document.createElement('option');
+    option.value = cli;
+    fragmento.appendChild(option);
+  });
+  datalist.appendChild(fragmento);
+}
+
+function processarEExibirDashboardGeral(filtroCategoriaForcado = null) {
   const inputInicio = document.getElementById('filtro-data-inicio');
   const inputFim = document.getElementById('filtro-data-fim');
   const inputCliente = document.getElementById('filtro-cliente');
@@ -77,71 +153,8 @@ function carregarDashboard() {
     tituloTabela.innerText = `Recebimentos de ${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`;
   }
 
-  Papa.parse(CSV_URL, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    complete: function(results) {
-      const dados = results.data;
-      if (!dados || dados.length === 0) return;
+  const filtroClienteTexto = inputCliente ? inputCliente.value.trim().toLowerCase() : "";
 
-      todosDadosGlobais = dados;
-
-      // Lê a data e hora da última atualização diretamente da coluna UltimaAtualizacao (primeira linha)
-      let textoAtualizacao = "Não informada";
-      if (dados.length > 0) {
-        const primeiroItem = dados[0];
-        const chaves = Object.keys(primeiroItem);
-        const chaveAtualizacao = chaves.find(k => k.trim().toLowerCase().includes('ultima') || k.trim().toLowerCase().includes('atualizacao'));
-        
-        if (chaveAtualizacao && primeiroItem[chaveAtualizacao]) {
-          textoAtualizacao = primeiroItem[chaveAtualizacao].toString().trim();
-        }
-      }
-
-      const elementoAtualizacao = document.getElementById('info-ultima-atualizacao');
-      if (elementoAtualizacao) {
-        elementoAtualizacao.innerText = `Última atualização da planilha: ${textoAtualizacao}`;
-      }
-
-      popularDatalistClientes(dados);
-
-      const clienteDigitado = inputCliente ? inputCliente.value.trim() : "";
-      processarEExibirTabela(dados, dataInicio, dataFim, null, clienteDigitado);
-    }
-  });
-}
-
-function popularDatalistClientes(dados) {
-  const datalist = document.getElementById('lista-clientes');
-  if (!datalist) return;
-
-  datalist.innerHTML = '';
-
-  const clientesSet = new Set();
-  dados.forEach(item => {
-    const chaves = Object.keys(item);
-    const getColuna = (nome) => {
-      const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
-      return chave ? item[chave] : '';
-    };
-    
-    const cliente = getColuna('Cliente') || getColuna('Razão Social');
-    if (cliente && cliente.toString().trim() !== '') {
-      clientesSet.add(cliente.toString().trim());
-    }
-  });
-
-  const clientesOrdenados = Array.from(clientesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  
-  clientesOrdenados.forEach(cli => {
-    const option = document.createElement('option');
-    option.value = cli;
-    datalist.appendChild(option);
-  });
-}
-
-function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, filtroClienteTexto) {
   let totalReceberPeriodo = 0;
   let totalRecebidoCaixa = 0;
   let totalAtrasadoPeriodo = 0;
@@ -154,7 +167,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
 
   let linhasParaExibir = [];
 
-  dados.forEach(item => {
+  todosDadosGlobais.forEach(item => {
     const chaves = Object.keys(item);
     const getColuna = (nome) => {
       const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
@@ -175,8 +188,8 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
 
     if (!dataVencimento) return;
 
-    if (filtroClienteTexto && filtroClienteTexto !== "") {
-      if (!cliente.toLowerCase().includes(filtroClienteTexto.toLowerCase())) {
+    if (filtroClienteTexto !== "") {
+      if (!cliente.toLowerCase().includes(filtroClienteTexto)) {
         return;
       }
     }
@@ -215,8 +228,8 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
 
     if (categoriaLinha) {
       let incluirNaTabela = true;
-      if (filtroCategoria) {
-        incluirNaTabela = (categoriaLinha === filtroCategoria);
+      if (filtroCategoriaForcado) {
+        incluirNaTabela = (categoriaLinha === filtroCategoriaForcado);
       }
 
       if (incluirNaTabela) {
@@ -244,39 +257,41 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
   });
 
   let somaFiltrada = 0;
+  let htmlFinalTabela = '';
   linhasParaExibir.forEach(l => {
-    if (tbodyDia) tbodyDia.innerHTML += l.html;
+    htmlFinalTabela += l.html;
     somaFiltrada += l.valorSoma;
   });
 
   if (tbodyDia) {
     if (linhasParaExibir.length > 0) {
-      const textoRodape = filtroCategoria ? `Total (${filtroCategoria}):` : 'Total Recebido no Período:';
-      const valorRodape = filtroCategoria === 'Recebido' || !filtroCategoria ? totalRecebidoCaixa : somaFiltrada;
+      const textoRodape = filtroCategoriaForcado ? `Total (${filtroCategoriaForcado}):` : 'Total Recebido no Período:';
+      const valorRodape = filtroCategoriaForcado === 'Recebido' || !filtroCategoriaForcado ? totalRecebidoCaixa : somaFiltrada;
 
-      tbodyDia.innerHTML += `
+      htmlFinalTabela += `
         <tr style="background-color: #252525; font-weight: bold; border-top: 2px solid #E85D17;">
           <td colspan="3" style="text-align: right; font-size: 1.05em; color: #FFFFFF;">${textoRodape}</td>
           <td style="color: #E85D17; font-size: 1.1em;">${formatarMoeda(valorRodape)}</td>
         </tr>`;
     } else {
-      tbodyDia.innerHTML = `
+      htmlFinalTabela = `
         <tr>
           <td colspan="4" style="text-align: center; color: #A0A0A0;">Nenhum registro encontrado para esta seleção.</td>
         </tr>`;
     }
+    tbodyDia.innerHTML = htmlFinalTabela;
   }
 
   document.getElementById('kpi-total-receber').innerText = formatarMoeda(totalReceberPeriodo);
   document.getElementById('kpi-total-recebido').innerText = formatarMoeda(totalRecebidoCaixa);
   document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
-  if (!filtroCategoria) {
-    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim, filtroClienteTexto);
+  if (!filtroCategoriaForcado) {
+    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim);
   }
 }
 
-function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim, filtroClienteTexto) {
+function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim) {
   const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
 
   if (graficoPizza) graficoPizza.destroy();
@@ -304,7 +319,7 @@ function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFi
             tituloTabela.innerText = `Filtro: ${labelClicado} (${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')})`;
           }
 
-          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado, filtroClienteTexto);
+          processarEExibirDashboardGeral(labelClicado);
         }
       },
       plugins: {
