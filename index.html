@@ -109,7 +109,7 @@
 
     .ultima-atualizacao {
       font-size: 0.85em;
-      color: #888888;
+      color: #888888; /* Alterado para cinza discreto */
       font-weight: 500;
     }
 
@@ -285,7 +285,7 @@
 
         <div>
           <label for="filtro-cliente">🏢 Razão Social:</label>
-          <input type="text" id="filtro-cliente" list="lista-clientes" placeholder="🔍 Digite ou selecione..." oninput="carregarDashboard()" onchange="carregarDashboard()">
+          <input type="text" id="filtro-cliente" list="lista-clientes" placeholder="🔍 Digite ou selecione..." oninput="acionarFiltroComAtraso()" onchange="processarEExibirDashboardGeral()">
           <datalist id="lista-clientes">
             <!-- Preenchido automaticamente pelo script.js -->
           </datalist>
@@ -342,7 +342,7 @@
 
   <script>
     // DEFINA A SENHA DA SUA EQUIPE AQUI:
-    const SENHA_EQUIPE = "reach2026";
+    const SENHA_EQUIPE = "Reach@Recebimentosgeral";
 
     window.addEventListener('DOMContentLoaded', () => {
       if (sessionStorage.getItem("reach_logado") === "true") {
