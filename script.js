@@ -24,6 +24,11 @@ function formatarMoeda(valor) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  definirDatasPadrao();
+  carregarDashboard();
+});
+
+function definirDatasPadrao() {
   const inputInicio = document.getElementById('filtro-data-inicio');
   const inputFim = document.getElementById('filtro-data-fim');
   
@@ -40,14 +45,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (inputInicio && !inputInicio.value) inputInicio.value = formatarDataInput(primeiroDia);
   if (inputFim && !inputFim.value) inputFim.value = formatarDataInput(ultimoDia);
+}
 
+function limparFiltros() {
+  definirDatasPadrao();
+  const inputCliente = document.getElementById('filtro-cliente');
+  if (inputCliente) inputCliente.value = "";
   carregarDashboard();
-});
+}
 
 function carregarDashboard() {
   const inputInicio = document.getElementById('filtro-data-inicio');
   const inputFim = document.getElementById('filtro-data-fim');
-  const selectRazao = document.getElementById('filtro-razao-social');
+  const inputCliente = document.getElementById('filtro-cliente');
 
   let dataInicio = new Date();
   let dataFim = new Date();
@@ -77,60 +87,57 @@ function carregarDashboard() {
 
       todosDadosGlobais = dados;
 
-      // 1. ATUALIZA A DATA E HORA EXATA DO CARREGAMENTO NO DASHBOARD
-      atualizarHoraAtualizacao();
+      // Lê a data e hora da última atualização diretamente da coluna UltimaAtualizacao (primeira linha)
+      let textoAtualizacao = "Não informada";
+      if (dados.length > 0) {
+        const primeiroItem = dados[0];
+        const chaves = Object.keys(primeiroItem);
+        const chaveAtualizacao = chaves.find(k => k.trim().toLowerCase().includes('ultima') || k.trim().toLowerCase().includes('atualizacao'));
+        
+        if (chaveAtualizacao && primeiroItem[chaveAtualizacao]) {
+          textoAtualizacao = primeiroItem[chaveAtualizacao].toString().trim();
+        }
+      }
 
-      // 2. POPULA O SELECT DE RAZÃO SOCIAL (caso ainda esteja vazio)
-      popularFiltroRazaoSocial(dados);
+      const elementoAtualizacao = document.getElementById('info-ultima-atualizacao');
+      if (elementoAtualizacao) {
+        elementoAtualizacao.innerText = `Última atualização da planilha: ${textoAtualizacao}`;
+      }
 
-      // Aplica os filtros considerando também a Razão Social selecionada
-      const razaoSelecionada = selectRazao ? selectRazao.value : "";
-      processarEExibirTabela(dados, dataInicio, dataFim, null, razaoSelecionada);
+      popularDatalistClientes(dados);
+
+      const clienteDigitado = inputCliente ? inputCliente.value.trim() : "";
+      processarEExibirTabela(dados, dataInicio, dataFim, null, clienteDigitado);
     }
   });
 }
 
-// Função para gerar a data e hora formatada
-function atualizarHoraAtualizacao() {
-  const agora = new Date();
-  const dataFormatada = agora.toLocaleDateString('pt-BR');
-  const horaFormatada = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  
-  const elemento = document.getElementById('info-ultima-atualizacao');
-  if (elemento) {
-    elemento.innerText = `Última atualização: ${dataFormatada} às ${horaFormatada}`;
-  }
-}
+function popularDatalistClientes(dados) {
+  const datalist = document.getElementById('lista-clientes');
+  if (!datalist) return;
 
-// Função para preencher o select com as Razões Sociais únicas do CSV
-function popularFiltroRazaoSocial(dados) {
-  const select = document.getElementById('filtro-razao-social');
-  if (!select) return;
+  datalist.innerHTML = '';
 
-  // Evita duplicar se já foi preenchido anteriormente
-  if (select.options.length > 1) return;
-
-  const razoes = new Set();
+  const clientesSet = new Set();
   dados.forEach(item => {
     const chaves = Object.keys(item);
     const getColuna = (nome) => {
       const chave = chaves.find(k => k.trim().toLowerCase() === nome.toLowerCase());
       return chave ? item[chave] : '';
     };
-    const razao = getColuna('Razão Social') || getColuna('Cliente');
-    if (razao) razoes.add(razao.toString().trim());
+    const cliente = getColuna('Cliente') || getColuna('Razão Social');
+    if (cliente) clientesSet.add(cliente.toString().trim());
   });
 
-  const razoesOrdenadas = Array.from(razoes).sort();
-  razoesOrdenadas.forEach(razao => {
-    const opt = document.createElement('option');
-    opt.value = razao;
-    opt.textContent = razao;
-    select.appendChild(opt);
+  const clientesOrdenados = Array.from(clientesSet).sort();
+  clientesOrdenados.forEach(cli => {
+    const option = document.createElement('option');
+    option.value = cli;
+    datalist.appendChild(option);
   });
 }
 
-function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, filtroRazaoSocial) {
+function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, filtroClienteTexto) {
   let totalReceberPeriodo = 0;
   let totalRecebidoCaixa = 0;
   let totalAtrasadoPeriodo = 0;
@@ -150,8 +157,7 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
       return chave ? item[chave] : '';
     };
 
-    const cliente = getColuna('Cliente') || getColuna('Razão Social') || 'Cliente Não Identificado';
-    const razaoSocialItem = (getColuna('Razão Social') || getColuna('Cliente')).toString().trim();
+    const cliente = (getColuna('Cliente') || getColuna('Razão Social') || 'Cliente Não Identificado').toString().trim();
     const vencimentoTexto = getColuna('Vencimento');
     const ultimoRecebimentoTexto = getColuna('Último Recebimento');
     const status = getColuna('Status').toString().trim().toLowerCase();
@@ -165,16 +171,16 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
 
     if (!dataVencimento) return;
 
-    // 3. APLICA O FILTRO DE RAZÃO SOCIAL (se houver alguma selecionada)
-    if (filtroRazaoSocial && filtroRazaoSocial !== "" && razaoSocialItem !== filtroRazaoSocial) {
-      return;
+    if (filtroClienteTexto && filtroClienteTexto !== "") {
+      if (!cliente.toLowerCase().includes(filtroClienteTexto.toLowerCase())) {
+        return;
+      }
     }
 
     const vencimentoNoPeriodo = dataVencimento >= dataInicio && dataVencimento <= dataFim;
     const dataPagamento = dataUltimoRecebimento || (status === 'recebido' ? dataVencimento : null);
     const jaFoiPago = (status === 'recebido' || (dataUltimoRecebimento !== null && !isNaN(dataUltimoRecebimento)));
 
-    // Cálculo dos totais para os KPIs
     if (vencimentoNoPeriodo && !jaFoiPago) {
       if (status === 'atrasado' || dataVencimento < hoje) {
         totalAtrasadoPeriodo += valorOriginal;
@@ -189,7 +195,6 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
       totalRecebidoCaixa += valorExibicaoLinha;
     }
 
-    // Classificação individual para exibição na tabela
     let categoriaLinha = null;
     let valorLinhaExibicao = valorOriginal;
 
@@ -234,7 +239,6 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
     }
   });
 
-  // Insere as linhas na tabela HTML
   let somaFiltrada = 0;
   linhasParaExibir.forEach(l => {
     if (tbodyDia) tbodyDia.innerHTML += l.html;
@@ -264,11 +268,11 @@ function processarEExibirTabela(dados, dataInicio, dataFim, filtroCategoria, fil
   document.getElementById('kpi-total-atrasado').innerText = formatarMoeda(totalAtrasadoPeriodo);
 
   if (!filtroCategoria) {
-    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim, filtroRazaoSocial);
+    renderizarGraficoPizza(totalRecebidoCaixa, totalReceberPeriodo, totalAtrasadoPeriodo, dataInicio, dataFim, filtroClienteTexto);
   }
 }
 
-function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim, filtroRazaoSocial) {
+function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFim, filtroClienteTexto) {
   const ctx = document.getElementById('graficoPizzaGeral').getContext('2d');
 
   if (graficoPizza) graficoPizza.destroy();
@@ -296,7 +300,7 @@ function renderizarGraficoPizza(recebido, receber, atrasados, dataInicio, dataFi
             tituloTabela.innerText = `Filtro: ${labelClicado} (${dataInicio.toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')})`;
           }
 
-          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado, filtroRazaoSocial);
+          processarEExibirTabela(todosDadosGlobais, dataInicio, dataFim, labelClicado, filtroClienteTexto);
         }
       },
       plugins: {
