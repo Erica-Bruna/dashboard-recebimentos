@@ -109,7 +109,8 @@
 
     .ultima-atualizacao {
       font-size: 0.85em;
-      color: #888888;
+      color: #2ecc71;
+      font-weight: 500;
     }
 
     .filtro-container { 
@@ -132,7 +133,7 @@
       justify-content: center;
     }
     
-    .filtro-box input[type="date"], .filtro-box select { 
+    .filtro-box input[type="date"] { 
       border: 1px solid #E85D17; 
       background-color: #2A2A2A;
       color: #FFFFFF;
@@ -142,6 +143,34 @@
       cursor: pointer; 
       outline: none; 
       color-scheme: dark;
+    }
+
+    .filtro-box input[type="text"] {
+      border: 1px solid #E85D17;
+      background-color: #2A2A2A;
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 5px;
+      font-size: 0.9em;
+      outline: none;
+      width: 250px;
+    }
+
+    .btn-limpar {
+      background-color: #2A2A2A;
+      color: #CCCCCC;
+      border: 1px solid #444444;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-limpar:hover {
+      background-color: #3A3A3A;
+      color: #FFFFFF;
+      border-color: #E85D17;
     }
 
     .kpi-container { 
@@ -237,29 +266,32 @@
   <!-- CONTEÚDO DO DASHBOARD (Protegido) -->
   <div id="dashboard-content">
 
-    <!-- 1. TÍTULO E DATA/HORA DA ÚLTIMA ATUALIZAÇÃO -->
+    <!-- 1. TÍTULO E DATA/HORA DA PLANILHA -->
     <div class="header-container">
       <h1>Recebimentos REACH</h1>
-      <div id="info-ultima-atualizacao" class="ultima-atualizacao">Última atualização: Aguardando carregamento...</div>
+      <div id="info-ultima-atualizacao" class="ultima-atualizacao">Última atualização da planilha: A carregar...</div>
     </div>
 
-    <!-- FILTROS (PERÍODO + RAZÃO SOCIAL) -->
+    <!-- FILTROS (PERÍODO + RAZÃO SOCIAL COM PESQUISA/DIGITAÇÃO) -->
     <div class="filtro-container">
       <div class="filtro-box">
         <div>
           <label for="filtro-data-inicio">📅 De:</label>
           <input type="date" id="filtro-data-inicio" onchange="carregarDashboard()" oninput="carregarDashboard()">
           
-          <label for="filtro-data-fim">Até:</label>
+          <label for="filtro-data-fim" style="margin-left: 10px;">Até:</label>
           <input type="date" id="filtro-data-fim" onchange="carregarDashboard()" oninput="carregarDashboard()">
         </div>
 
         <div>
-          <label for="filtro-razao-social">🏢 Razão Social:</label>
-          <select id="filtro-razao-social" onchange="carregarDashboard()">
-            <option value="">Todas as Razões Sociais</option>
-          </select>
+          <label for="filtro-cliente">🏢 Razão Social:</label>
+          <input type="text" id="filtro-cliente" list="lista-clientes" placeholder="🔍 Digite ou selecione..." oninput="carregarDashboard()" onchange="carregarDashboard()">
+          <datalist id="lista-clientes">
+            <!-- Preenchido automaticamente pelo script.js -->
+          </datalist>
         </div>
+
+        <button onclick="limparFiltros()" class="btn-limpar">🔄 Limpar</button>
       </div>
     </div>
 
@@ -310,9 +342,8 @@
 
   <script>
     // DEFINA A SENHA DA SUA EQUIPE AQUI:
-    const SENHA_EQUIPE = "Reach@Recebimentos";
+    const SENHA_EQUIPE = "reach2026";
 
-    // Verifica se já estava logado na sessão atual do navegador
     window.addEventListener('DOMContentLoaded', () => {
       if (sessionStorage.getItem("reach_logado") === "true") {
         liberarAcesso();
